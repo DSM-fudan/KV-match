@@ -16,6 +16,7 @@
 package cn.edu.fudan.dsm.kvmatch.experiments;
 
 import cn.edu.fudan.dsm.kvmatch.NormQueryEngine;
+import cn.edu.fudan.dsm.kvmatch.experiments.ucr.PaaUcrEdQueryExecutor;
 import cn.edu.fudan.dsm.kvmatch.experiments.ucr.UcrEdQueryExecutor;
 import cn.edu.fudan.dsm.kvmatch.operator.TimeSeriesOperator;
 import cn.edu.fudan.dsm.kvmatch.operator.file.TimeSeriesFileOperator;
@@ -29,12 +30,11 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Scanner;
 
 /**
- * Created by Jiaye Wu on 17-8-28.
+ * Created by Jiaye Wu on 18-8-20.
  */
 public class NormQueryTestGroupBySelectivity {
 
@@ -109,13 +109,20 @@ public class NormQueryTestGroupBySelectivity {
                     if (runUcrEd && (j == 0 || !queryBetas.get(j).equals(queryBetas.get(j-1)))) {
                         @SuppressWarnings("unchecked")
                         List<Double> queryData = timeSeriesOperator.readTimeSeries(queryOffsets.get(j), queryLengths.get(j));
-                        Iterator scanner = timeSeriesOperator.readAllTimeSeries();
-                        UcrEdQueryExecutor executor = new UcrEdQueryExecutor(N, queryLengths.get(j), queryData, queryEpsilons.get(j), queryAlphas.get(j), queryBetas.get(j), scanner);
+
+                        UcrEdQueryExecutor executor = new UcrEdQueryExecutor(N, queryLengths.get(j), queryData, queryEpsilons.get(j), queryAlphas.get(j), queryBetas.get(j), timeSeriesOperator.readAllTimeSeries());
                         long startTime = System.currentTimeMillis();
                         int cntAnswers = executor.run();
                         long endTime = System.currentTimeMillis();
-                        StatisticWriter.println("," + (endTime - startTime) + "," + cntAnswers);
+                        StatisticWriter.print("," + (endTime - startTime) + "," + cntAnswers);
                         logger.info("UCR-ED: {} ({} ms)", cntAnswers, endTime - startTime);
+
+                        PaaUcrEdQueryExecutor executor2 = new PaaUcrEdQueryExecutor(N, queryLengths.get(j), queryData, queryEpsilons.get(j), queryAlphas.get(j), queryBetas.get(j), 24, timeSeriesOperator.readAllTimeSeries());
+                        long startTime2 = System.currentTimeMillis();
+                        int cntAnswers2 = executor2.run();
+                        long endTime2 = System.currentTimeMillis();
+                        StatisticWriter.println("," + (endTime2 - startTime2) + "," + cntAnswers2);
+                        logger.info("PAA-UCR-ED: {} ({} ms)", cntAnswers2, endTime2 - startTime2);
                     } else {
                         StatisticWriter.println();
                     }

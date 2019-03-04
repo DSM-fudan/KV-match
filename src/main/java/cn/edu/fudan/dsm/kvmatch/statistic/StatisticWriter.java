@@ -33,7 +33,7 @@ public class StatisticWriter {
 
     static {
         try {
-            File file = new File("statistic.csv");
+            File file = new File("statistic." + System.currentTimeMillis() + ".csv");
             if (!file.exists()) {
                 file.createNewFile();
             }

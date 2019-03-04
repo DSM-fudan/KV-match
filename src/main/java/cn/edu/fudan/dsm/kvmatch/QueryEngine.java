@@ -71,7 +71,7 @@ public class QueryEngine {
         Scanner scanner = new Scanner(System.in);
         System.out.print("Data Length = ");
         int n = scanner.nextInt();
-        QueryEngine queryEngine = new QueryEngine(n, "kudu");
+        QueryEngine queryEngine = new QueryEngine(n, "file");
         StatisticWriter.println("Offset,Length,Epsilon,T,T_1,T_2,#candidates,#answers");
 
         do {

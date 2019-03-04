@@ -62,7 +62,7 @@ public class IndexBuilder {
         int n = scanner.nextInt();
         scanner.close();
 
-        IndexBuilder indexBuilder = new IndexBuilder(n, "hbase");
+        IndexBuilder indexBuilder = new IndexBuilder(n, "file");
         indexBuilder.buildIndexes();
     }
 
@@ -110,14 +110,18 @@ public class IndexBuilder {
             try {
                 Iterator scanner = timeSeriesOperator.readAllTimeSeries();
                 SingleIndexBuilder builder = new SingleIndexBuilder(n, WuList[i], scanner, indexOperators[i]);
+                long startTime1 = System.currentTimeMillis();
                 builder.run();
+                long endTime1 = System.currentTimeMillis();
+                logger.info("w = {}, time usage: {} ms", WuList[i], endTime1 - startTime1);
+                StatisticWriter.print(String.valueOf(endTime1 - startTime1) + ",");
             } catch (IOException e) {
                 logger.error(e.getMessage(), e.getCause());
             }
         }
 
         long endTime = System.currentTimeMillis();
-        logger.info("Time usage: {} ms", endTime - startTime);
+        logger.info("Total time usage: {} ms", endTime - startTime);
         StatisticWriter.print(String.valueOf(endTime - startTime) + ",");
     }
 
