@@ -34,6 +34,13 @@ public class NormInterval {
 
     private double ex2Upper;
 
+    private long betaPartitions;
+
+    public NormInterval(int left, int right) {
+        this.left = left;
+        this.right = right;
+    }
+
     public NormInterval(int left, int right, double exLower, double ex2Lower, double exUpper, double ex2Upper) {
         this.left = left;
         this.right = right;
@@ -49,6 +56,14 @@ public class NormInterval {
         this.right = right;
         this.exLower = ex;
         this.ex2Lower = ex2;
+    }
+
+    public NormInterval(int left, int right, double ex, double ex2, long betaPartitions) {
+        this.left = left;
+        this.right = right;
+        this.exLower = ex;
+        this.ex2Lower = ex2;
+        this.betaPartitions = betaPartitions;
     }
 
     public int getLeft() {
@@ -109,8 +124,16 @@ public class NormInterval {
         this.ex2Upper = ex2Upper;
     }
 
+    public long getBetaPartitions() {
+        return betaPartitions;
+    }
+
+    public void setBetaPartitions(long betaPartitions) {
+        this.betaPartitions = betaPartitions;
+    }
+
     @Override
     public String toString() {
-        return "\n[" + String.valueOf((left-1)*50+1) + ", " + String.valueOf((right-1)*50+1) + "] - Ex: " + exLower + "-" + exUpper + ", Ex2: " + ex2Lower + "-" + ex2Upper;
+        return "\n[" + left + ", " + right + "] - Ex: " + exLower + "-" + exUpper + ", Ex2: " + ex2Lower + "-" + ex2Upper;
     }
 }

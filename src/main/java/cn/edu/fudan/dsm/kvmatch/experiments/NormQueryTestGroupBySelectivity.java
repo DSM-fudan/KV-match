@@ -36,12 +36,14 @@ import java.util.Scanner;
 /**
  * Created by Jiaye Wu on 18-8-20.
  */
+@SuppressWarnings("Duplicates")
 public class NormQueryTestGroupBySelectivity {
 
     private static final Logger logger = LoggerFactory.getLogger(NormQueryTestGroupBySelectivity.class);
 
-    @SuppressWarnings("Duplicates")
-    public static void main(String args[]) {
+    private static final int NUM_STATISTIC_INFO = 10;
+
+    public static void main(String[] args) {
         int N;
         String storageType;
         boolean runUcrEd;
@@ -53,7 +55,7 @@ public class NormQueryTestGroupBySelectivity {
             Scanner scanner = new Scanner(System.in);
             System.out.print("Data Length = ");
             N = scanner.nextInt();
-            System.out.print("Storage type [file/hdfs/hbase/kudu] = ");
+            System.out.print("Storage type [file/hbase/kudu] = ");
             storageType = scanner.next();
             System.out.print("Run UCR-ED? [true/false] = ");
             runUcrEd = scanner.nextBoolean();
@@ -88,8 +90,8 @@ public class NormQueryTestGroupBySelectivity {
                 }
 
                 // initialization: 0-T, 1-T_1, 2-T_2, 3-#candidates, 4-#answers, 5-#scans
-                List<StatisticInfo> statisticInfos = new ArrayList<>(6);
-                for (int j = 0; j < 6; j++) {
+                List<StatisticInfo> statisticInfos = new ArrayList<>(NUM_STATISTIC_INFO);
+                for (int j = 0; j < NUM_STATISTIC_INFO; j++) {
                     statisticInfos.add(new StatisticInfo());
                 }
 
@@ -101,7 +103,7 @@ public class NormQueryTestGroupBySelectivity {
                     }
                     // output detail log to file
                     StatisticWriter.print(N + "," + queryOffsets.get(j) + "," + queryLengths.get(j) + "," + queryEpsilons.get(j) + "," + queryAlphas.get(j) + "," + queryBetas.get(j));
-                    for (int k = 0; k < 6; k++) {
+                    for (int k = 0; k < NUM_STATISTIC_INFO; k++) {
                         StatisticWriter.print("," + statisticInfos.get(k).getLast());
                     }
 
@@ -131,7 +133,7 @@ public class NormQueryTestGroupBySelectivity {
                 // output statistic information
                 logger.info("T: {} ms, T_1: {} ms, T_2: {} ms, #candidates: {}, #answers: {}, #scans: {}", statisticInfos.get(0).getAverage(), statisticInfos.get(1).getAverage(), statisticInfos.get(2).getAverage(), statisticInfos.get(3).getAverage(), statisticInfos.get(4).getAverage(), statisticInfos.get(5).getAverage());
                 StatisticWriter.print(filename + ",");
-                for (int j = 0; j < 6; j++) {
+                for (int j = 0; j < NUM_STATISTIC_INFO; j++) {
                     StatisticWriter.print(statisticInfos.get(j).getAverage() + ",");
                 }
                 StatisticWriter.println();

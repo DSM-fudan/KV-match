@@ -56,6 +56,8 @@ public class NormQueryEngine {
     private static final boolean ENABLE_QUERY_REORDERING = true;
     private static final boolean ENABLE_INCREMENTAL_VISITING = true;
     private static final boolean ENABLE_STD_FILTER = true;
+    private static final boolean ENABLE_BETA_PARTITION = true;
+    private static final double BETA_PARTITION_WIDTH = 10.0;
     private static final int MAX_SCAN_DATA_LENGTH = 40000;
 
     private TimeSeriesOperator timeSeriesOperator = null;
@@ -67,7 +69,7 @@ public class NormQueryEngine {
     private double[][] cost;
     private int[][] cost2;
 
-    public static void main(String args[]) throws IOException {
+    public static void main(String[] args) throws IOException {
         Scanner scanner = new Scanner(System.in);
         System.out.print("Data Length = ");
         int n = scanner.nextInt();
@@ -141,9 +143,6 @@ public class NormQueryEngine {
             case "file":
                 timeSeriesOperator = new TimeSeriesFileOperator(n, false);
                 break;
-            case "hdfs":
-
-                break;
             case "hbase":
                 timeSeriesOperator = new TimeSeriesHBaseTableOperator(n, 7, false);
                 break;
@@ -157,9 +156,6 @@ public class NormQueryEngine {
                 case "file":
                     indexOperators[i] = new IndexFileOperator("standard", n, WuList[i], false);
                     break;
-                case "hdfs":
-
-                    break;
                 case "hbase":
                     indexOperators[i] = new IndexHBaseTableOperator("standard", n, WuList[i], false);
                     break;
@@ -167,7 +163,6 @@ public class NormQueryEngine {
                     indexOperators[i] = new IndexKuduTableOperator("standard", n, WuList[i], false);
                     break;
             }
-
         }
         loadMetaTable();
     }
@@ -236,6 +231,30 @@ public class NormQueryEngine {
             double endRound1 = 1.0 / alpha * query.getMean() + (1 - 1.0 / alpha) * meanQ + beta + Math.sqrt(1.0 / (alpha * alpha) * stdQ * stdQ * epsilon * epsilon / query.getWu());
             endRound = MeanIntervalUtils.toRound(Math.max(endRound, endRound1));
 
+            // beta partitions
+            int betaPartitionNum = 1;
+            if (ENABLE_BETA_PARTITION) {
+                betaPartitionNum = (int) (2.0 * beta / BETA_PARTITION_WIDTH);
+                if (betaPartitionNum > 64) {  // at most 64 bits
+                    betaPartitionNum = 64;
+                }
+            }
+            List<Pair<Double, Double>> betaPartitions = new ArrayList<>(betaPartitionNum);
+            for (int betaPartitionIdx = 0; betaPartitionIdx < betaPartitionNum; betaPartitionIdx++) {
+                double betaPartition = 2.0 * beta / betaPartitionNum;
+
+                double beginRoundT = 1.0 / alpha * query.getMean() + (1 - 1.0 / alpha) * meanQ - beta + betaPartition * betaPartitionIdx - Math.sqrt(1.0 / (alpha * alpha) * stdQ * stdQ * epsilon * epsilon / query.getWu());
+                double beginRound1T = alpha * query.getMean() + (1 - alpha) * meanQ - beta + betaPartition * betaPartitionIdx - Math.sqrt(alpha * alpha * stdQ * stdQ * epsilon * epsilon / query.getWu());
+                beginRoundT = MeanIntervalUtils.toRound(Math.min(beginRoundT, beginRound1T), statisticInfos.get(query.getWu() / WuList[0] - 1));
+
+                double endRoundT = alpha * query.getMean() + (1 - alpha) * meanQ - beta + betaPartition * (betaPartitionIdx + 1) + Math.sqrt(alpha * alpha * stdQ * stdQ * epsilon * epsilon / query.getWu());
+                double endRound1T = 1.0 / alpha * query.getMean() + (1 - 1.0 / alpha) * meanQ - beta + betaPartition * (betaPartitionIdx + 1) + Math.sqrt(1.0 / (alpha * alpha) * stdQ * stdQ * epsilon * epsilon / query.getWu());
+                endRoundT = MeanIntervalUtils.toRound(Math.max(endRoundT, endRound1T));
+
+                betaPartitions.add(new Pair<>(beginRoundT, endRoundT));
+//                logger.info("Beta partition #{}: {} - {}", betaPartitionIdx + 1, beginRoundT, endRoundT);
+            }
+
             logger.info("Scan index from {} to {}", beginRound, endRound);
             if (ENABLE_INCREMENTAL_VISITING) {
                 int cacheIndex = query.getWu() / WuList[0] - 1;
@@ -248,15 +267,15 @@ public class NormQueryEngine {
                      * Cache  : index_l_l|_____|index_l_r
                      * Future : index_l_l|_____|index_l_r
                      */
-                    scanCache(index_l, beginRound, true, endRound, true, query, positions);
+                    scanCache(index_l, beginRound, true, endRound, true, query, positions, betaPartitions);
                 } else if (index_l < 0 && index_r >= 0) {
                     /*
                      * Current:         l|_==|r
                      * Cache  :   index_r_l|_____|index_r_r
                      * Future : index_r_l|_______|index_r_r
                      */
-                    scanCache(index_r, indexCaches.get(cacheIndex).get(index_r).getBeginRound(), true, endRound, true, query, positions);
-                    scanIndexAndAddCache(beginRound, true, indexCaches.get(cacheIndex).get(index_r).getBeginRound(), false, index_r, query, positions);
+                    scanCache(index_r, indexCaches.get(cacheIndex).get(index_r).getBeginRound(), true, endRound, true, query, positions, betaPartitions);
+                    scanIndexAndAddCache(beginRound, true, indexCaches.get(cacheIndex).get(index_r).getBeginRound(), false, index_r, query, positions, betaPartitions);
                     indexCaches.get(cacheIndex).get(index_r).setBeginRound(beginRound);
                 } else if (index_l >= 0 && index_r < 0) {
                     /*
@@ -264,8 +283,8 @@ public class NormQueryEngine {
                      * Cache  : index_l_l|_____|index_l_r
                      * Future : index_l_l|_______|index_l_r
                      */
-                    scanCache(index_l, beginRound, true, indexCaches.get(cacheIndex).get(index_l).getEndRound(), true, query, positions);
-                    scanIndexAndAddCache(indexCaches.get(cacheIndex).get(index_l).getEndRound(), false, endRound, true, index_l, query, positions);
+                    scanCache(index_l, beginRound, true, indexCaches.get(cacheIndex).get(index_l).getEndRound(), true, query, positions, betaPartitions);
+                    scanIndexAndAddCache(indexCaches.get(cacheIndex).get(index_l).getEndRound(), false, endRound, true, index_l, query, positions, betaPartitions);
                     indexCaches.get(cacheIndex).get(index_l).setEndRound(endRound);
                 } else if (index_l == index_r && index_l < 0) {
                     /*
@@ -273,7 +292,7 @@ public class NormQueryEngine {
                      * Cache  : |_____|       |_____|
                      * Future : |_____|l|___|r|_____|
                      */
-                    scanIndexAndAddCache(beginRound, true, endRound, true, index_r, query, positions);  // insert a new cache node
+                    scanIndexAndAddCache(beginRound, true, endRound, true, index_r, query, positions, betaPartitions);  // insert a new cache node
                 } else if (index_l >= 0 && index_r >= 0 && index_l + 1 == index_r) {
                     /*
                       Current:     l|=___=|r
@@ -281,13 +300,13 @@ public class NormQueryEngine {
                       Future : |_______________|
                      */
                     double s = indexCaches.get(cacheIndex).get(index_l).getEndRound();
-                    scanCache(index_l, beginRound, true, s, true, query, positions);
-                    scanIndexAndAddCache(s, false, indexCaches.get(cacheIndex).get(index_r).getBeginRound(), false, index_r, query, positions);
-                    scanCache(index_r, indexCaches.get(cacheIndex).get(index_r).getBeginRound(), true, endRound, true, query, positions);
+                    scanCache(index_l, beginRound, true, s, true, query, positions, betaPartitions);
+                    scanIndexAndAddCache(s, false, indexCaches.get(cacheIndex).get(index_r).getBeginRound(), false, index_r, query, positions, betaPartitions);
+                    scanCache(index_r, indexCaches.get(cacheIndex).get(index_r).getBeginRound(), true, endRound, true, query, positions, betaPartitions);
                     indexCaches.get(cacheIndex).get(index_r).setBeginRound(s + 0.01);
                 }
             } else {
-                scanIndex(beginRound, true, endRound, true, query, positions);
+                scanIndex(beginRound, true, endRound, true, query, positions, betaPartitions);
             }
             positions = sortButNotMergeIntervals(positions);
 //            logger.info("position: {}", positions.toString());
@@ -296,14 +315,20 @@ public class NormQueryEngine {
                 for (NormInterval position : positions) {
                     if (position.getRight() - (query.getOrder() - 1) * WuList[0] + queryLength - 1 > n) {
                         if (position.getLeft() - (query.getOrder() - 1) * WuList[0] + queryLength - 1 <= n) {
-                            nextValidPositions.add(new NormInterval(position.getLeft() + deltaW, n - queryLength + 1 + (query.getOrder() - 1) * WuList[0] + deltaW, position.getEx(), position.getEx2()));
+                            nextValidPositions.add(new NormInterval(position.getLeft() + deltaW,
+                                    n - queryLength + 1 + (query.getOrder() - 1) * WuList[0] + deltaW,
+                                    position.getExLower(), position.getEx2Lower(), position.getBetaPartitions()));
                         }
                     } else if (position.getLeft() - (query.getOrder() - 1) * WuList[0] < 1) {
                         if (position.getRight() - (query.getOrder() - 1) * WuList[0] >= 1) {
-                            nextValidPositions.add(new NormInterval(1 + (query.getOrder() - 1) * WuList[0] + deltaW, position.getRight() + deltaW, position.getEx(), position.getEx2()));
+                            nextValidPositions.add(new NormInterval(1 + (query.getOrder() - 1) * WuList[0] + deltaW,
+                                    position.getRight() + deltaW,
+                                    position.getExLower(), position.getEx2Lower(), position.getBetaPartitions()));
                         }
                     } else {
-                        nextValidPositions.add(new NormInterval(position.getLeft() + deltaW, position.getRight() + deltaW, position.getEx(), position.getEx2()));
+                        nextValidPositions.add(new NormInterval(position.getLeft() + deltaW,
+                                position.getRight() + deltaW,
+                                position.getExLower(), position.getEx2Lower(), position.getBetaPartitions()));
                     }
                 }
             } else {
@@ -314,9 +339,22 @@ public class NormQueryEngine {
                     } else if (positions.get(index2).getRight() < validPositions.get(index1).getLeft()) {
                         index2++;
                     } else {
+                        long commonBetaPartitions = 0;
+                        if (ENABLE_BETA_PARTITION) {
+                            commonBetaPartitions = validPositions.get(index1).getBetaPartitions() & positions.get(index2).getBetaPartitions();
+                            if (commonBetaPartitions == 0) {  // no common, abandon the former one
+                                if (validPositions.get(index1).getRight() < positions.get(index2).getRight()) {
+                                    index1++;
+                                } else {
+                                    index2++;
+                                }
+                                continue;
+                            }
+                        }
+
                         if (ENABLE_STD_FILTER) {
-                            double sumEx = validPositions.get(index1).getEx() + positions.get(index2).getEx();
-                            double sumEx2 = validPositions.get(index1).getEx2() + positions.get(index2).getEx2();
+                            double sumEx = validPositions.get(index1).getExLower() + positions.get(index2).getExLower();
+                            double sumEx2 = validPositions.get(index1).getEx2Lower() + positions.get(index2).getEx2Lower();
                             double mean = sumEx / preLength;
 
                             double std2 = 0;
@@ -328,21 +366,33 @@ public class NormQueryEngine {
 
                             if (validPositions.get(index1).getRight() < positions.get(index2).getRight()) {
                                 if (Double.compare(std2, alpha * alpha * stdQ * stdQ) <= 0) {
-                                    nextValidPositions.add(new NormInterval(Math.max(validPositions.get(index1).getLeft(), positions.get(index2).getLeft()) + deltaW, validPositions.get(index1).getRight() + deltaW, sumEx, sumEx2));
+                                    nextValidPositions.add(new NormInterval(
+                                            Math.max(validPositions.get(index1).getLeft(), positions.get(index2).getLeft()) + deltaW,
+                                            validPositions.get(index1).getRight() + deltaW,
+                                            sumEx, sumEx2, commonBetaPartitions));
                                 }
                                 index1++;
                             } else {
                                 if (Double.compare(std2, alpha * alpha * stdQ * stdQ) <= 0) {
-                                    nextValidPositions.add(new NormInterval(Math.max(validPositions.get(index1).getLeft(), positions.get(index2).getLeft()) + deltaW, positions.get(index2).getRight() + deltaW, sumEx, sumEx2));
+                                    nextValidPositions.add(new NormInterval(
+                                            Math.max(validPositions.get(index1).getLeft(), positions.get(index2).getLeft()) + deltaW,
+                                            positions.get(index2).getRight() + deltaW,
+                                            sumEx, sumEx2, commonBetaPartitions));
                                 }
                                 index2++;
                             }
                         } else {
                             if (validPositions.get(index1).getRight() < positions.get(index2).getRight()) {
-                                nextValidPositions.add(new NormInterval(Math.max(validPositions.get(index1).getLeft(), positions.get(index2).getLeft()) + deltaW, validPositions.get(index1).getRight() + deltaW, 0, 0));
+                                nextValidPositions.add(new NormInterval(
+                                        Math.max(validPositions.get(index1).getLeft(), positions.get(index2).getLeft()) + deltaW,
+                                        validPositions.get(index1).getRight() + deltaW,
+                                        0, 0, commonBetaPartitions));
                                 index1++;
                             } else {
-                                nextValidPositions.add(new NormInterval(Math.max(validPositions.get(index1).getLeft(), positions.get(index2).getLeft()) + deltaW, positions.get(index2).getRight() + deltaW, 0, 0));
+                                nextValidPositions.add(new NormInterval(
+                                        Math.max(validPositions.get(index1).getLeft(), positions.get(index2).getLeft()) + deltaW,
+                                        positions.get(index2).getRight() + deltaW,
+                                        0, 0, commonBetaPartitions));
                                 index2++;
                             }
                         }
@@ -429,6 +479,7 @@ public class NormQueryEngine {
             if (begin < 1) begin = 1;
             if (end > n) end = n;
             logger.debug("Scan data [{}, {}]", begin, end);
+            @SuppressWarnings("unchecked")
             List<Double> data = timeSeriesOperator.readTimeSeries(begin, end - begin + 1);
 
             for (int idx1 = beginIdx; idx1 <= endIdx; idx1++) {
@@ -450,7 +501,7 @@ public class NormQueryEngine {
                     T[i % queryLength] = d;
                     T[(i % queryLength) + queryLength] = d;
 
-                    if (i >= queryLength - 1) {
+                    if (i - begin1 >= queryLength - 1) {
                         // the current starting location of T
                         int j = (i + 1) % queryLength;
 
@@ -619,7 +670,10 @@ public class NormQueryEngine {
         return queries;
     }
 
-    private void scanIndex(double begin, boolean beginInclusive, double end, boolean endInclusive, QuerySegment query, List<NormInterval> positions) throws IOException {
+    @SuppressWarnings("SameParameterValue")
+    private void scanIndex(double begin, boolean beginInclusive, double end, boolean endInclusive,
+                           QuerySegment query, List<NormInterval> positions,
+                           List<Pair<Double, Double>> betaPartitions) throws IOException {
         int useWu = query.getWu() / WuList[0];
 
         if (!beginInclusive) begin = begin + 0.01;
@@ -630,13 +684,26 @@ public class NormQueryEngine {
         for (Map.Entry<Double, IndexNode> entry : indexes.entrySet()) {
             double meanRound = entry.getKey();
             double meanRound2 = meanRound < 0 ? MeanIntervalUtils.toUpper(meanRound, statisticInfos.get(useWu - 1)) : meanRound;
+            long partitions = 0;
+            if (ENABLE_BETA_PARTITION) {
+                for (int betaPartitionIdx = 0; betaPartitionIdx < betaPartitions.size(); betaPartitionIdx++) {
+                    Pair<Double, Double> betaPartition = betaPartitions.get(betaPartitionIdx);
+                    if (betaPartition.getFirst() > meanRound) break;
+                    if (betaPartition.getFirst() <= meanRound && betaPartition.getSecond() >= meanRound) {
+                        partitions |= 1 << betaPartitionIdx;
+                    }
+                }
+            }
             for (Pair<Integer, Integer> position : entry.getValue().getPositions()) {
-                positions.add(new NormInterval(position.getFirst(), position.getSecond(), meanRound * useWu, meanRound2 * meanRound2 * useWu));
+                positions.add(new NormInterval(position.getFirst(), position.getSecond(),
+                        meanRound * useWu, meanRound2 * meanRound2 * useWu, partitions));
             }
         }
     }
 
-    private void scanIndexAndAddCache(double begin, boolean beginInclusive, double end, boolean endInclusive, int index, QuerySegment query, List<NormInterval> positions) throws IOException {
+    private void scanIndexAndAddCache(double begin, boolean beginInclusive, double end, boolean endInclusive,
+                                      int index, QuerySegment query, List<NormInterval> positions,
+                                      List<Pair<Double, Double>> betaPartitions) throws IOException {
         int useWu = query.getWu() / WuList[0];
 
         if (index < 0) {
@@ -652,23 +719,47 @@ public class NormQueryEngine {
         for (Map.Entry<Double, IndexNode> entry : indexes.entrySet()) {
             double meanRound = entry.getKey();
             double meanRound2 = meanRound < 0 ? MeanIntervalUtils.toUpper(meanRound, statisticInfos.get(useWu - 1)) : meanRound;
+            long partitions = 0;
+            if (ENABLE_BETA_PARTITION) {
+                for (int betaPartitionIdx = 0; betaPartitionIdx < betaPartitions.size(); betaPartitionIdx++) {
+                    Pair<Double, Double> betaPartition = betaPartitions.get(betaPartitionIdx);
+                    if (betaPartition.getFirst() > meanRound) break;
+                    if (betaPartition.getFirst() <= meanRound && betaPartition.getSecond() >= meanRound) {
+                        partitions |= 1 << betaPartitionIdx;
+                    }
+                }
+            }
             for (Pair<Integer, Integer> position : entry.getValue().getPositions()) {
-                positions.add(new NormInterval(position.getFirst(), position.getSecond(), meanRound * useWu, meanRound2 * meanRound2 * useWu));
+                positions.add(new NormInterval(position.getFirst(), position.getSecond(),
+                        meanRound * useWu, meanRound2 * meanRound2 * useWu, partitions));
             }
 
             indexCaches.get(useWu - 1).get(index).addCache(meanRound, entry.getValue());
         }
     }
 
-    private void scanCache(int index, double begin, boolean beginInclusive, double end, boolean endInclusive, QuerySegment query, List<NormInterval> positions) {
+    @SuppressWarnings("SameParameterValue")
+    private void scanCache(int index, double begin, boolean beginInclusive, double end, boolean endInclusive,
+                           QuerySegment query, List<NormInterval> positions, List<Pair<Double, Double>> betaPartitions) {
         int useWu = query.getWu() / WuList[0];
 
         for (Map.Entry<Double, IndexNode> entry : indexCaches.get(useWu - 1).get(index).getCaches().subMap(begin, beginInclusive, end, endInclusive).entrySet()) {
             double meanRound = entry.getKey();
             double meanRound2 = meanRound < 0 ? MeanIntervalUtils.toUpper(meanRound, statisticInfos.get(useWu - 1)) : meanRound;
+            long partitions = 0;
+            if (ENABLE_BETA_PARTITION) {
+                for (int betaPartitionIdx = 0; betaPartitionIdx < betaPartitions.size(); betaPartitionIdx++) {
+                    Pair<Double, Double> betaPartition = betaPartitions.get(betaPartitionIdx);
+                    if (betaPartition.getFirst() > meanRound) break;
+                    if (betaPartition.getFirst() <= meanRound && betaPartition.getSecond() >= meanRound) {
+                        partitions |= 1 << betaPartitionIdx;
+                    }
+                }
+            }
             IndexNode indexNode = entry.getValue();
             for (Pair<Integer, Integer> position : indexNode.getPositions()) {
-                positions.add(new NormInterval(position.getFirst(), position.getSecond(), meanRound * useWu, meanRound2 * meanRound2 * useWu));
+                positions.add(new NormInterval(position.getFirst(), position.getSecond(),
+                        meanRound * useWu, meanRound2 * meanRound2 * useWu, partitions));
             }
         }
     }
@@ -705,26 +796,29 @@ public class NormQueryEngine {
         NormInterval first = intervals.get(0);
         int start = first.getLeft();
         int end = first.getRight();
-        double ex = first.getEx();
-        double ex2 = first.getEx2();
+        double ex = first.getExLower();
+        double ex2 = first.getEx2Lower();
+        long betaPartitions = first.getBetaPartitions();
 
         List<NormInterval> result = new ArrayList<>();
 
         for (int i = 1; i < intervals.size(); i++) {
             NormInterval current = intervals.get(i);
-            if (current.getLeft() - 1 < end || (current.getLeft() - 1 == end && Double.compare(current.getEx(), ex) == 0 && Double.compare(current.getEx2(), ex2) == 0)) {
+            if (current.getLeft() - 1 < end || (current.getLeft() - 1 == end && Double.compare(current.getExLower(), ex) == 0 && Double.compare(current.getEx2Lower(), ex2) == 0)) {
                 end = Math.max(current.getRight(), end);
-                ex = Math.min(current.getEx(), ex);
-                ex2 = Math.min(current.getEx2(), ex2);
+                ex = Math.min(current.getExLower(), ex);
+                ex2 = Math.min(current.getEx2Lower(), ex2);
+                betaPartitions = current.getBetaPartitions() | betaPartitions;
             } else {
-                result.add(new NormInterval(start, end, ex, ex2));
+                result.add(new NormInterval(start, end, ex, ex2, betaPartitions));
                 start = current.getLeft();
                 end = current.getRight();
-                ex = current.getEx();
-                ex2 = current.getEx2();
+                ex = current.getExLower();
+                ex2 = current.getEx2Lower();
+                betaPartitions = current.getBetaPartitions();
             }
         }
-        result.add(new NormInterval(start, end, ex, ex2));
+        result.add(new NormInterval(start, end, ex, ex2, betaPartitions));
 
         return result;
     }
@@ -739,8 +833,9 @@ public class NormQueryEngine {
         NormInterval first = intervals.get(0);
         int start = first.getLeft();
         int end = first.getRight();
-        double ex = first.getEx();
-        double ex2 = first.getEx2();
+        double ex = first.getExLower();
+        double ex2 = first.getEx2Lower();
+        long betaPartitions = first.getBetaPartitions();
 
         List<NormInterval> result = new ArrayList<>();
 
@@ -753,20 +848,22 @@ public class NormQueryEngine {
                 cntDisjointIntervals--;
             }
 
-            if (current.getLeft() - 1 < end || (current.getLeft() - 1 == end && Double.compare(current.getEx(), ex) == 0 && Double.compare(current.getEx2(), ex2) == 0)) {
+            if (current.getLeft() - 1 < end || (current.getLeft() - 1 == end && Double.compare(current.getExLower(), ex) == 0 && Double.compare(current.getEx2Lower(), ex2) == 0)) {
                 end = Math.max(current.getRight(), end);
-                ex = Math.min(current.getEx(), ex);
-                ex2 = Math.min(current.getEx2(), ex2);
+                ex = Math.min(current.getExLower(), ex);
+                ex2 = Math.min(current.getEx2Lower(), ex2);
+                betaPartitions = current.getBetaPartitions() | betaPartitions;
             } else {
-                result.add(new NormInterval(start, end, ex, ex2));
+                result.add(new NormInterval(start, end, ex, ex2, betaPartitions));
                 cntOffsets += end - start + 1;
                 start = current.getLeft();
                 end = current.getRight();
-                ex = current.getEx();
-                ex2 = current.getEx2();
+                ex = current.getExLower();
+                ex2 = current.getEx2Lower();
+                betaPartitions = current.getBetaPartitions();
             }
         }
-        result.add(new NormInterval(start, end, ex, ex2));
+        result.add(new NormInterval(start, end, ex, ex2, betaPartitions));
         cntOffsets += end - start + 1;
 
         return new Pair<>(result, new Pair<>(cntDisjointIntervals, cntOffsets));
@@ -782,8 +879,6 @@ public class NormQueryEngine {
         NormInterval first = intervals.get(0);
         int start = first.getLeft();
         int end = first.getRight();
-        double ex = first.getEx();
-        double ex2 = first.getEx2();
 
         List<NormInterval> result = new ArrayList<>();
 
@@ -791,17 +886,13 @@ public class NormQueryEngine {
             NormInterval current = intervals.get(i);
             if (current.getLeft() - 1 <= end) {
                 end = Math.max(current.getRight(), end);
-                ex = Math.min(current.getEx(), ex);
-                ex2 = Math.min(current.getEx2(), ex2);
             } else {
-                result.add(new NormInterval(start, end, ex, ex2));
+                result.add(new NormInterval(start, end));
                 start = current.getLeft();
                 end = current.getRight();
-                ex = current.getEx();
-                ex2 = current.getEx2();
             }
         }
-        result.add(new NormInterval(start, end, ex, ex2));
+        result.add(new NormInterval(start, end));
 
         return result;
     }
