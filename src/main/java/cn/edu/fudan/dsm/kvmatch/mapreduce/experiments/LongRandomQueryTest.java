@@ -40,7 +40,7 @@ public class LongRandomQueryTest {
 
 //    private static final double[] EpsilonList = {5, 10, 15, 18, 24, 30, 50, 100, 150, 200, 400};
 
-    public static void main(String args[]) {
+    public static void main(String[] args) {
         try {
             for (int n = 10; n <= 12; n++) {
                 long N = (long) Math.pow(10, n);

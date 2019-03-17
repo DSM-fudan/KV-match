@@ -65,7 +65,37 @@ public class QueryEngineDtw {
     private double[][] cost;
     private int[][] cost2;
 
-    public static void main(String args[]) throws IOException {
+    public QueryEngineDtw(int n, String storageType) throws IOException {
+        this.n = n;
+        switch (storageType) {
+            case "file":
+                timeSeriesOperator = new TimeSeriesFileOperator(n, false);
+                break;
+            case "hbase":
+                timeSeriesOperator = new TimeSeriesHBaseTableOperator(n, 7, false);
+                break;
+            case "kudu":
+                timeSeriesOperator = new TimeSeriesKuduTableOperator(n, false);
+                break;
+        }
+        for (int i = 0; i < WuList.length; i++) {
+            if (!WuEnabled[i]) continue;
+            switch (storageType) {
+                case "file":
+                    indexOperators[i] = new IndexFileOperator("standard", n, WuList[i], false);
+                    break;
+                case "hbase":
+                    indexOperators[i] = new IndexHBaseTableOperator("standard", n, WuList[i], false);
+                    break;
+                case "kudu":
+                    indexOperators[i] = new IndexKuduTableOperator("standard", n, WuList[i], false);
+                    break;
+            }
+        }
+        loadMetaTable();
+    }
+
+    public static void main(String[] args) throws IOException {
         Scanner scanner = new Scanner(System.in);
         System.out.print("Data Length = ");
         int n = scanner.nextInt();
@@ -129,43 +159,6 @@ public class QueryEngineDtw {
             }
             StatisticWriter.println("");
         } while (true);
-    }
-
-    public QueryEngineDtw(int n, String storageType) throws IOException {
-        this.n = n;
-        switch (storageType) {
-            case "file":
-                timeSeriesOperator = new TimeSeriesFileOperator(n, false);
-                break;
-            case "hdfs":
-
-                break;
-            case "hbase":
-                timeSeriesOperator = new TimeSeriesHBaseTableOperator(n, 7, false);
-                break;
-            case "kudu":
-                timeSeriesOperator = new TimeSeriesKuduTableOperator(n, false);
-                break;
-        }
-        for (int i = 0; i < WuList.length; i++) {
-            if (!WuEnabled[i]) continue;
-            switch (storageType) {
-                case "file":
-                    indexOperators[i] = new IndexFileOperator("standard", n, WuList[i], false);
-                    break;
-                case "hdfs":
-
-                    break;
-                case "hbase":
-                    indexOperators[i] = new IndexHBaseTableOperator("standard", n, WuList[i], false);
-                    break;
-                case "kudu":
-                    indexOperators[i] = new IndexKuduTableOperator("standard", n, WuList[i], false);
-                    break;
-            }
-
-        }
-        loadMetaTable();
     }
 
     @SuppressWarnings("unchecked")
@@ -249,7 +242,7 @@ public class QueryEngineDtw {
                     scanCache(index_l, beginRound, true, indexCaches.get(cacheIndex).get(index_l).getEndRound(), true, query, positions);
                     scanIndexAndAddCache(indexCaches.get(cacheIndex).get(index_l).getEndRound(), false, endRound, true, index_l, query, positions);
                     indexCaches.get(cacheIndex).get(index_l).setEndRound(endRound);
-                } else if (index_l < 0 && index_r < 0) {
+                } else if (index_l == index_r && index_l < 0) {
                     /*
                      * Current:        l|___|r
                      * Cache  : |_____|       |_____|
@@ -397,6 +390,7 @@ public class QueryEngineDtw {
             if (begin < 1) begin = 1;
             if (end > n) end = n;
             logger.debug("Scan data [{}, {}]", begin, end);
+            @SuppressWarnings("unchecked")
             List<Double> data = timeSeriesOperator.readTimeSeries(begin, end - begin + 1);
             double[] T = new double[2 * length];
 
@@ -472,71 +466,6 @@ public class QueryEngineDtw {
         }
         logger.info("T: {} ms, T_1: {} ms, T_2: {} ms, #candidates: {}, #answers: {}", endTime2 - startTime, endTime1 - startTime1, endTime2 - startTime2, cntCandidate, answers.size());
         return !answers.isEmpty();
-    }
-
-    private double dtw(List<Double> data, int offset, List<Double> queryData, double epsilon, int rho) {
-        int length = queryData.size();
-        double INF = 1e20;
-
-        // Instead of using matrix of size O(m^2) or O(mr), we will reuse two array of size O(r).
-        double[] cost = new double[2 * rho + 1];
-        double[] costPrev = new double[2 * rho + 1];
-        for (int k = 0; k < 2 * rho + 1; k++) {
-            cost[k] = INF;
-            costPrev[k] = INF;
-        }
-
-        int k = 0;
-        for (int i = 0; i < length; i++) {
-            k = Math.max(0, rho - i);
-            double minCost = INF;
-
-            for (int j = Math.max(0, i-rho); j <= Math.min(length-1, i+rho); j++, k++) {
-                if ((i == 0) && (j == 0)) {  // Initialize all row and column
-                    cost[k] = (data.get(offset) - queryData.get(0)) * (data.get(offset) - queryData.get(0));
-                    minCost = cost[k];
-                    continue;
-                }
-
-                double x, y, z;
-                if ((j - 1 < 0) || (k - 1 < 0)) {
-                    y = INF;
-                } else {
-                    y = cost[k - 1];
-                }
-                if ((i - 1 < 0) || (k + 1 > 2 * rho)) {
-                    x = INF;
-                } else {
-                    x = costPrev[k + 1];
-                }
-                if ((i - 1 < 0) || (j - 1 < 0)) {
-                    z = INF;
-                } else {
-                    z = costPrev[k];
-                }
-
-                // Classic DTW calculation
-                cost[k] = Math.min(Math.min(x, y), z) + (data.get(offset+i) - queryData.get(j)) * (data.get(offset+i) - queryData.get(j));
-
-                // Find minimum cost in row for early abandoning (possibly to use column instead of row).
-                if (cost[k] < minCost) {
-                    minCost = cost[k];
-                }
-            }
-
-            // We can abandon early if the current cumulative distance with lower bound together are larger than bsf
-            if (i + rho < length - 1 && minCost >= epsilon * epsilon) {
-                return minCost;
-            }
-
-            // Move current array to previous array.
-            double[] costTemp = cost;
-            cost = costPrev;
-            costPrev = costTemp;
-        }
-
-        // the DTW distance is in the last cell in the matrix of size O(m^2) or at the middle of our array.
-        return costPrev[k-1];
     }
 
     private Pair<Integer, Integer> getCountsFromStatisticInfo(int Wu, double meanMin, double meanMax, double epsilon) {
@@ -714,7 +643,9 @@ public class QueryEngineDtw {
         return queries;
     }
 
-    private void scanIndex(double begin, boolean beginInclusive, double end, boolean endInclusive, RangeQuerySegment query, List<Interval> positions) throws IOException {
+    @SuppressWarnings("SameParameterValue")
+    private void scanIndex(double begin, boolean beginInclusive, double end, boolean endInclusive,
+                           RangeQuerySegment query, List<Interval> positions) throws IOException {
         if (!beginInclusive) begin = begin + 0.01;
         if (endInclusive) end = end + 0.01;
 
@@ -729,7 +660,8 @@ public class QueryEngineDtw {
         }
     }
 
-    private void scanIndexAndAddCache(double begin, boolean beginInclusive, double end, boolean endInclusive, int index, RangeQuerySegment query, List<Interval> positions) throws IOException {
+    private void scanIndexAndAddCache(double begin, boolean beginInclusive, double end, boolean endInclusive,
+                                      int index, RangeQuerySegment query, List<Interval> positions) throws IOException {
         if (index < 0) {
             index = -index - 1;
             indexCaches.get(query.getWu() / WuList[0] - 1).add(index, new IndexCache(begin, end));
@@ -751,7 +683,9 @@ public class QueryEngineDtw {
         }
     }
 
-    private void scanCache(int index, double begin, boolean beginInclusive, double end, boolean endInclusive, RangeQuerySegment query, List<Interval> positions) {
+    @SuppressWarnings("SameParameterValue")
+    private void scanCache(int index, double begin, boolean beginInclusive, double end, boolean endInclusive,
+                           RangeQuerySegment query, List<Interval> positions) {
         for (Map.Entry<Double, IndexNode> entry : indexCaches.get(query.getWu() / WuList[0] - 1).get(index).getCaches().subMap(begin, beginInclusive, end, endInclusive).entrySet()) {
             double meanRound = entry.getKey();
             IndexNode indexNode = entry.getValue();

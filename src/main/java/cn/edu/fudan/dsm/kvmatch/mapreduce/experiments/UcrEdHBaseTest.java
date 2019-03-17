@@ -38,7 +38,7 @@ public class UcrEdHBaseTest {
     private static FloatTimeSeriesTableOperator timeSeriesOperator = null;
 
     @SuppressWarnings("Duplicates")
-    public static void main(String args[]) {
+    public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
         System.out.print("Data Length = ");
         int N = scanner.nextInt();

@@ -33,7 +33,7 @@ public class TimeSeriesMemoryOperator implements TimeSeriesOperator {
     private int N;
     private List<Double> data;
 
-    public TimeSeriesMemoryOperator(int N) throws IOException {
+    public TimeSeriesMemoryOperator(int N) {
         this.N = N;
         loadData();
     }
@@ -45,7 +45,7 @@ public class TimeSeriesMemoryOperator implements TimeSeriesOperator {
         try (DataInputStream dis = new DataInputStream(new BufferedInputStream(new FileInputStream(file)))) {
             for (int i = 1; i <= N; i++) {
                 data.add(dis.readDouble());
-                logger.debug("Data #{} - {}", i, data.get(i-1));
+                logger.debug("Data #{} - {}", i, data.get(i - 1));
             }
         } catch (EOFException e) {
             // do nothing
@@ -57,7 +57,7 @@ public class TimeSeriesMemoryOperator implements TimeSeriesOperator {
     }
 
     @Override
-    public List<Double> readTimeSeries(int left, int length) throws IOException {
+    public List<Double> readTimeSeries(int left, int length) {
         if (left < 1 || left + length - 1 > N || length < 1) {
             throw new IllegalArgumentException("left: " + left + ", length: " + length);
         }
@@ -66,17 +66,17 @@ public class TimeSeriesMemoryOperator implements TimeSeriesOperator {
     }
 
     @Override
-    public TimeSeriesNodeIterator readAllTimeSeries() throws IOException {
+    public TimeSeriesNodeIterator readAllTimeSeries() {
         throw new UnsupportedOperationException("unimplemented.");
     }
 
     @Override
-    public void writeTimeSeriesNode(TimeSeriesRowKey rowKey, TimeSeriesNode node) throws IOException {
+    public void writeTimeSeriesNode(TimeSeriesRowKey rowKey, TimeSeriesNode node) {
         throw new UnsupportedOperationException("unimplemented.");
     }
 
     @Override
-    public void close() throws IOException {
+    public void close() {
         throw new UnsupportedOperationException("unimplemented.");
     }
 }

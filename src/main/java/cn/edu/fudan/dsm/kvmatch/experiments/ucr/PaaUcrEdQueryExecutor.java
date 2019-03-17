@@ -25,6 +25,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.*;
 
+@SuppressWarnings("Duplicates")
 public class PaaUcrEdQueryExecutor {
 
     private static final Logger logger = LoggerFactory.getLogger(PaaUcrEdQueryExecutor.class);
@@ -43,7 +44,22 @@ public class PaaUcrEdQueryExecutor {
     private Iterator scanner;
     private TimeSeriesNode node = new TimeSeriesNode();
 
-    @SuppressWarnings("Duplicates")
+    public PaaUcrEdQueryExecutor(int N, int M, List<Double> queryData, double Epsilon, double Alpha, double Beta, int Phi, Iterator scanner) {
+        this.scanner = scanner;
+        this.M = M;
+        this.N = N;
+        this.queryData = queryData;
+        this.Epsilon = Epsilon;
+        this.Alpha = Alpha;
+        this.Beta = Beta;
+        this.Phi = Phi;
+
+        // Array for keeping the query data
+        Q = new double[M];
+        eQ = new double[Phi];
+        eT = new double[Phi];
+    }
+
     private boolean nextData() {
         if (dataIndex + 1 < node.getData().size()) {
             dataIndex++;
@@ -91,40 +107,24 @@ public class PaaUcrEdQueryExecutor {
         double tmp = tmpPre;
 
         for (int i = 0; i < Phi - 1; i++) {
-            eT[i] = Pre[(st + (i+1)*pSize - 1) % M] - tmp;
+            eT[i] = Pre[(st + (i + 1) * pSize - 1) % M] - tmp;
             eT[i] = (eT[i] / pSize - mean) / std;
-            tmp = Pre[(st + (i+1)*pSize - 1) % M];
+            tmp = Pre[(st + (i + 1) * pSize - 1) % M];
         }
         eT[Phi - 1] = Pre[x % M] - tmp;
-        eT[Phi - 1] = (eT[Phi - 1] / (M - (Phi-1)*pSize) - mean) / std;
+        eT[Phi - 1] = (eT[Phi - 1] / (M - (Phi - 1) * pSize) - mean) / std;
 
         double lb = 0;
         for (int i = 0; i < Phi - 1; i++) {
             lb += (eT[i] - eQ[i]) * (eT[i] - eQ[i]) * pSize;
         }
-        lb += (eT[Phi - 1] - eQ[Phi - 1]) * (eT[Phi - 1] - eQ[Phi - 1]) * (M - (Phi-1)*pSize);
+        lb += (eT[Phi - 1] - eQ[Phi - 1]) * (eT[Phi - 1] - eQ[Phi - 1]) * (M - (Phi - 1) * pSize);
         return Math.sqrt(lb);
     }
 
     private double ED(double S1, double S2, double S3, double S4, double S5) {
-        double tmp = (M * S5 - S1 * S2) / (Math.sqrt(M * S3 - S1*S1) * Math.sqrt(M * S4 - S2*S2));
+        double tmp = (M * S5 - S1 * S2) / (Math.sqrt(M * S3 - S1 * S1) * Math.sqrt(M * S4 - S2 * S2));
         return Math.sqrt(2 * M * (1.0 - tmp));
-    }
-
-    public PaaUcrEdQueryExecutor(int N, int M, List<Double> queryData, double Epsilon, double Alpha, double Beta, int Phi, Iterator scanner) {
-        this.scanner = scanner;
-        this.M = M;
-        this.N = N;
-        this.queryData = queryData;
-        this.Epsilon = Epsilon;
-        this.Alpha = Alpha;
-        this.Beta = Beta;
-        this.Phi = Phi;
-
-        // Array for keeping the query data
-        Q = new double[M];
-        eQ = new double[Phi];
-        eT = new double[Phi];
     }
 
     @SuppressWarnings("Duplicates")
@@ -148,16 +148,16 @@ public class PaaUcrEdQueryExecutor {
         int pSize = M / Phi;
         for (int i = 0; i < Phi - 1; i++) {
             eQ[i] = 0;
-            for (int j = i*pSize; j < (i+1)*pSize; j++) {
+            for (int j = i * pSize; j < (i + 1) * pSize; j++) {
                 eQ[i] = eQ[i] + Q[j];
             }
             eQ[i] = (eQ[i] * 1.0 / pSize - meanQ) / stdQ;
         }
         eQ[Phi - 1] = 0;
-        for (int j = (Phi - 1)*pSize; j < M; j++) {
+        for (int j = (Phi - 1) * pSize; j < M; j++) {
             eQ[Phi - 1] = eQ[Phi - 1] + Q[j];
         }
-        eQ[Phi - 1] = (eQ[Phi - 1] * 1.0 / (M - (Phi - 1)*pSize) - meanQ) / stdQ;
+        eQ[Phi - 1] = (eQ[Phi - 1] * 1.0 / (M - (Phi - 1) * pSize) - meanQ) / stdQ;
 
         // Normalize Q
         for (int i = 0; i < M; i++) {
@@ -190,12 +190,12 @@ public class PaaUcrEdQueryExecutor {
         ex = t[0];
         ex2 = t[0] * t[0];
         Pre[0] = t[0];
-        double S1 = 0, S2 = t[0], S3 = 0, S4 = t[0]*t[0], S5 = 0;  // T(c-1), T(c), T(c-1)^2, T(c)^2, T(c-1)*T(c)
+        double S1, S2 = t[0], S3, S4 = t[0] * t[0], S5 = 0;  // T(c-1), T(c), T(c-1)^2, T(c)^2, T(c-1)*T(c)
         double preTii = 0, preTi = 0, tmpPre = 0, lbED = 0;
 
         for (int i = 1; i < N; i++) {
             if (i % M == 0) {
-                for (int j = M-1; j >= 0; j--) {
+                for (int j = M - 1; j >= 0; j--) {
                     Pre[j] = Pre[j] - Pre[0];
                 }
                 tmpPre = 0;
@@ -206,15 +206,15 @@ public class PaaUcrEdQueryExecutor {
             nextData();
             double d = getCurrentData();
             t[i % M] = d;
-            Pre[i % M] = Pre[(i-1) % M] + d;
+            Pre[i % M] = Pre[(i - 1) % M] + d;
             ex += d;
             ex2 += d * d;
 
             S1 = S2;
             S2 = S2 - preTi + d;
             S3 = S4;
-            S4 = S4 - preTi*preTi + d * d;
-            S5 = S5 - preTi*preTii + t[(i-1) % M] * d;
+            S4 = S4 - preTi * preTi + d * d;
+            S5 = S5 - preTi * preTii + t[(i - 1) % M] * d;
 
             if (i >= M - 1) {
                 double mean = ex / M;

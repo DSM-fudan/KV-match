@@ -17,7 +17,6 @@ package cn.edu.fudan.dsm.kvmatch;
 
 import cn.edu.fudan.dsm.kvmatch.common.*;
 import cn.edu.fudan.dsm.kvmatch.common.entity.IndexNode;
-import cn.edu.fudan.dsm.kvmatch.common.Index;
 import cn.edu.fudan.dsm.kvmatch.operator.IndexOperator;
 import cn.edu.fudan.dsm.kvmatch.operator.TimeSeriesOperator;
 import cn.edu.fudan.dsm.kvmatch.operator.file.IndexFileOperator;
@@ -68,6 +67,36 @@ public class NormQueryEngine {
     private double[] prefixSums;
     private double[][] cost;
     private int[][] cost2;
+
+    public NormQueryEngine(int n, String storageType) throws IOException {
+        this.n = n;
+        switch (storageType) {
+            case "file":
+                timeSeriesOperator = new TimeSeriesFileOperator(n, false);
+                break;
+            case "hbase":
+                timeSeriesOperator = new TimeSeriesHBaseTableOperator(n, 7, false);
+                break;
+            case "kudu":
+                timeSeriesOperator = new TimeSeriesKuduTableOperator(n, false);
+                break;
+        }
+        for (int i = 0; i < WuList.length; i++) {
+            if (!WuEnabled[i]) continue;
+            switch (storageType) {
+                case "file":
+                    indexOperators[i] = new IndexFileOperator("standard", n, WuList[i], false);
+                    break;
+                case "hbase":
+                    indexOperators[i] = new IndexHBaseTableOperator("standard", n, WuList[i], false);
+                    break;
+                case "kudu":
+                    indexOperators[i] = new IndexKuduTableOperator("standard", n, WuList[i], false);
+                    break;
+            }
+        }
+        loadMetaTable();
+    }
 
     public static void main(String[] args) throws IOException {
         Scanner scanner = new Scanner(System.in);
@@ -135,36 +164,6 @@ public class NormQueryEngine {
             }
             StatisticWriter.println("");
         } while (true);
-    }
-
-    public NormQueryEngine(int n, String storageType) throws IOException {
-        this.n = n;
-        switch (storageType) {
-            case "file":
-                timeSeriesOperator = new TimeSeriesFileOperator(n, false);
-                break;
-            case "hbase":
-                timeSeriesOperator = new TimeSeriesHBaseTableOperator(n, 7, false);
-                break;
-            case "kudu":
-                timeSeriesOperator = new TimeSeriesKuduTableOperator(n, false);
-                break;
-        }
-        for (int i = 0; i < WuList.length; i++) {
-            if (!WuEnabled[i]) continue;
-            switch (storageType) {
-                case "file":
-                    indexOperators[i] = new IndexFileOperator("standard", n, WuList[i], false);
-                    break;
-                case "hbase":
-                    indexOperators[i] = new IndexHBaseTableOperator("standard", n, WuList[i], false);
-                    break;
-                case "kudu":
-                    indexOperators[i] = new IndexKuduTableOperator("standard", n, WuList[i], false);
-                    break;
-            }
-        }
-        loadMetaTable();
     }
 
     @SuppressWarnings("unchecked")
@@ -548,12 +547,12 @@ public class NormQueryEngine {
     private Pair<Integer, Integer> getCountsFromStatisticInfo(int Wu, double mean, double epsilon, double alpha, double beta, double meanQ, double stdQ) {
         List<Pair<Double, Pair<Integer, Integer>>> statisticInfo = statisticInfos.get(Wu / WuList[0] - 1);
 
-        double beginRound = 1.0/alpha * mean + (1 - 1.0/alpha) * meanQ - beta - Math.sqrt(1.0/(alpha*alpha) * stdQ*stdQ * epsilon*epsilon / Wu);
-        double beginRound1 = alpha * mean + (1 - alpha) * meanQ - beta - Math.sqrt(alpha*alpha * stdQ*stdQ * epsilon*epsilon / Wu);
+        double beginRound = 1.0 / alpha * mean + (1 - 1.0 / alpha) * meanQ - beta - Math.sqrt(1.0 / (alpha * alpha) * stdQ * stdQ * epsilon * epsilon / Wu);
+        double beginRound1 = alpha * mean + (1 - alpha) * meanQ - beta - Math.sqrt(alpha * alpha * stdQ * stdQ * epsilon * epsilon / Wu);
         beginRound = MeanIntervalUtils.toRound(Math.min(beginRound, beginRound1));
 
-        double endRound = alpha * mean + (1 - alpha) * meanQ + beta + Math.sqrt(alpha*alpha * stdQ*stdQ * epsilon*epsilon / Wu);
-        double endRound1 = 1.0/alpha * mean + (1 - 1.0/alpha) * meanQ + beta + Math.sqrt(1.0/(alpha*alpha) * stdQ*stdQ * epsilon*epsilon / Wu);
+        double endRound = alpha * mean + (1 - alpha) * meanQ + beta + Math.sqrt(alpha * alpha * stdQ * stdQ * epsilon * epsilon / Wu);
+        double endRound1 = 1.0 / alpha * mean + (1 - 1.0 / alpha) * meanQ + beta + Math.sqrt(1.0 / (alpha * alpha) * stdQ * stdQ * epsilon * epsilon / Wu);
         endRound = MeanIntervalUtils.toRound(Math.max(endRound, endRound1));
 
         int index = Collections.binarySearch(statisticInfo, new Pair<>(beginRound, 0), Comparator.comparing(Pair::getFirst));

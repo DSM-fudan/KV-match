@@ -30,11 +30,12 @@ import java.util.Scanner;
 /**
  * Created by Jiaye Wu on 18-2-22.
  */
+@SuppressWarnings("Duplicates")
 public class QueryDtwSelectivityGenerate {
 
     private static final Logger logger = LoggerFactory.getLogger(QueryDtwSelectivityGenerate.class);
 
-    public static void main(String args[]) {
+    public static void main(String[] args) {
         int N;
         String storageType;
         if (args.length == 2) {
@@ -44,7 +45,7 @@ public class QueryDtwSelectivityGenerate {
             Scanner scanner = new Scanner(System.in);
             System.out.print("Data Length = ");
             N = scanner.nextInt();
-            System.out.print("Storage type [file/hdfs/hbase/kudu] = ");
+            System.out.print("Storage type [file/hbase/kudu] = ");
             storageType = scanner.next();
         }
 

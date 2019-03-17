@@ -47,6 +47,17 @@ public class FloatUcrEdQueryExecutor {
     private Iterator scanner;
     private FloatTimeSeriesNode node = new FloatTimeSeriesNode();
 
+    public FloatUcrEdQueryExecutor(int N, int M, List<Float> queryData, double Epsilon, Iterator scanner) {
+        this.scanner = scanner;
+        this.M = M;
+        this.N = N;
+        this.queryData = queryData;
+        this.Epsilon = Epsilon;
+
+        // Array for keeping the query data
+        Q = new double[M];
+    }
+
     private boolean nextData() throws IOException {
         if (dataIndex + 1 < node.getData().size()) {
             dataIndex++;
@@ -86,17 +97,6 @@ public class FloatUcrEdQueryExecutor {
             sum += (x - Q[i]) * (x - Q[i]);
         }
         return sum;
-    }
-
-    public FloatUcrEdQueryExecutor(int N, int M, List<Float> queryData, double Epsilon, Iterator scanner) {
-        this.scanner = scanner;
-        this.M = M;
-        this.N = N;
-        this.queryData = queryData;
-        this.Epsilon = Epsilon;
-
-        // Array for keeping the query data
-        Q = new double[M];
     }
 
     @SuppressWarnings("Duplicates")
@@ -156,8 +156,8 @@ public class FloatUcrEdQueryExecutor {
                 j = (i + 1) % M;
 
                 // Z_norm(T[i]) will be calculated on the fly
-                mean = ex/M;
-                std = ex2/M;
+                mean = ex / M;
+                std = ex2 / M;
                 std = Math.sqrt(std - mean * mean);
 
                 // Calculate ED distance
@@ -166,7 +166,7 @@ public class FloatUcrEdQueryExecutor {
                     answers.add(new Pair<>(i - M + 2, Math.sqrt(dist)));
                 }
                 ex -= T[j];
-                ex2 -= T[j]*T[j];
+                ex2 -= T[j] * T[j];
             }
             i++;
         }

@@ -15,10 +15,10 @@
  */
 package cn.edu.fudan.dsm.kvmatch.experiments.ucr;
 
+import cn.edu.fudan.dsm.kvmatch.common.Index;
 import cn.edu.fudan.dsm.kvmatch.common.Pair;
 import cn.edu.fudan.dsm.kvmatch.common.entity.TimeSeriesNode;
 import cn.edu.fudan.dsm.kvmatch.utils.DtwUtils;
-import cn.edu.fudan.dsm.kvmatch.common.Index;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.slf4j.Logger;
@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory;
 import java.io.EOFException;
 import java.util.*;
 
+@SuppressWarnings("Duplicates")
 public class UcrDtwQueryExecutor {
 
     private static final Logger logger = LoggerFactory.getLogger(UcrDtwQueryExecutor.class);
@@ -41,7 +42,17 @@ public class UcrDtwQueryExecutor {
     private Iterator scanner;
     private TimeSeriesNode node = new TimeSeriesNode();
 
-    @SuppressWarnings("Duplicates")
+    public UcrDtwQueryExecutor(int N, int M, List<Double> queryData, double Epsilon, int Rho, double Alpha, double Beta, Iterator scanner) {
+        this.scanner = scanner;
+        this.M = M;
+        this.N = N;
+        this.queryData = queryData;
+        this.Epsilon = Epsilon;
+        this.Rho = Rho;
+        this.Alpha = Alpha;
+        this.Beta = Beta;
+    }
+
     private boolean nextData() {
         if (dataIndex + 1 < node.getData().size()) {
             dataIndex++;
@@ -68,17 +79,6 @@ public class UcrDtwQueryExecutor {
 
     private double getCurrentData() {
         return node.getData().get(dataIndex);
-    }
-
-    public UcrDtwQueryExecutor(int N, int M, List<Double> queryData, double Epsilon, int Rho, double Alpha, double Beta, Iterator scanner) {
-        this.scanner = scanner;
-        this.M = M;
-        this.N = N;
-        this.queryData = queryData;
-        this.Epsilon = Epsilon;
-        this.Rho = Rho;
-        this.Alpha = Alpha;
-        this.Beta = Beta;
     }
 
     public int run() {

@@ -39,6 +39,7 @@ public class LongQueryEngine {
     // \Sigma = {25, 50, 100, 200, 400}
     private static final int[] WuList = {25, 50, 75, 100, 125, 150, 175, 200, 225, 250, 275, 300, 325, 350, 375, 400};
     private static final boolean[] WuEnabled = {true, true, false, true, false, false, false, true, false, false, false, false, false, false, false, true};
+
     private static final boolean ENABLE_EARLY_TERMINATION = true;
     private static final double PHASE_2_TIME_ESTIMATE_COEFFICIENT_A = 4.0707589132278;
     private static final double PHASE_2_TIME_ESTIMATE_COEFFICIENT_B = 0.269833135638498;
@@ -46,7 +47,7 @@ public class LongQueryEngine {
     private static final boolean ENABLE_QUERY_REORDERING = true;
     private static final boolean ENABLE_INCREMENTAL_VISITING = true;
 
-    private FloatTimeSeriesTableOperator timeSeriesOperator = null;
+    private FloatTimeSeriesTableOperator timeSeriesOperator;
     private LongIndexTableOperator[] indexOperators = new LongIndexTableOperator[WuList.length];
     private List<List<Pair<Double, Pair<Long, Long>>>> statisticInfos = new ArrayList<>(WuList.length);
     private List<List<LongIndexCache>> indexCaches = new ArrayList<>(WuList.length);
@@ -65,7 +66,7 @@ public class LongQueryEngine {
         loadMetaTable();
     }
 
-    public static void main(String args[]) throws IOException {
+    public static void main(String[] args) throws IOException {
         Scanner scanner = new Scanner(System.in);
         System.out.print("Data Length = ");
         long n = scanner.nextLong();
@@ -461,7 +462,9 @@ public class LongQueryEngine {
         return queries;
     }
 
-    private void scanIndex(double begin, boolean beginInclusive, double end, boolean endInclusive, LongQuerySegment query, List<LongInterval> positions) throws IOException {
+    @SuppressWarnings("SameParameterValue")
+    private void scanIndex(double begin, boolean beginInclusive, double end, boolean endInclusive,
+                           LongQuerySegment query, List<LongInterval> positions) throws IOException {
         if (!beginInclusive) begin = begin + 0.01;
         if (endInclusive) end = end + 0.01;
 
@@ -496,7 +499,9 @@ public class LongQueryEngine {
         }
     }
 
-    private void scanCache(int index, double begin, boolean beginInclusive, double end, boolean endInclusive, LongQuerySegment query, List<LongInterval> positions) {
+    @SuppressWarnings("SameParameterValue")
+    private void scanCache(int index, double begin, boolean beginInclusive, double end, boolean endInclusive,
+                           LongQuerySegment query, List<LongInterval> positions) {
         for (Map.Entry<Double, LongIndexNode> entry : indexCaches.get(query.getWu() / WuList[0] - 1).get(index).getCaches().subMap(begin, beginInclusive, end, endInclusive).entrySet()) {
             double meanRound = entry.getKey();
             LongIndexNode indexNode = entry.getValue();

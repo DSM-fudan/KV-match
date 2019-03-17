@@ -50,7 +50,7 @@ public class LongQuerySegment {
 
     @Override
     public String toString() {
-        return String.valueOf(order) + "(" + String.valueOf(Wu) + ")";
+        return order + "(" + Wu + ")";
     }
 
     public double getMean() {

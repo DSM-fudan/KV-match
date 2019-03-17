@@ -49,11 +49,11 @@ public class DataGenerator {
     private List<SeriesGenerator> generators = new ArrayList<>();
     private int dataLength;
 
-    public DataGenerator(int dataLength) throws IOException {
+    public DataGenerator(int dataLength) {
         this.dataLength = dataLength;
     }
 
-    public static void main(String args[]) throws IOException {
+    public static void main(String[] args) throws IOException {
         System.out.print("Data Length = ");
         Scanner scanner = new Scanner(System.in);
         int dataLength = scanner.nextInt();

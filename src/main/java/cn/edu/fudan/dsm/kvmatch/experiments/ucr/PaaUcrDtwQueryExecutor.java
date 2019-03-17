@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.*;
 
+@SuppressWarnings("Duplicates")
 public class PaaUcrDtwQueryExecutor {
 
     private static final double INF = 1e20;
@@ -46,7 +47,27 @@ public class PaaUcrDtwQueryExecutor {
     private Iterator scanner;
     private TimeSeriesNode node = new TimeSeriesNode();
 
-    @SuppressWarnings("Duplicates")
+    public PaaUcrDtwQueryExecutor(int N, int M, List<Double> queryData, double Epsilon, int Rho, double Alpha, double Beta, int Phi, Iterator scanner) {
+        this.scanner = scanner;
+        this.M = M;
+        this.N = N;
+        this.queryData = queryData;
+        this.Epsilon = Epsilon;
+        this.Rho = Rho;
+        this.Alpha = Alpha;
+        this.Beta = Beta;
+        this.Phi = Phi;
+
+        Q = new double[M];
+        QQ = new Index[M];
+        Qu = new double[M];
+        Ql = new double[M];
+        eQ = new double[Phi];
+        eT = new double[Phi];
+        eQu = new double[Phi];
+        eQl = new double[Phi];
+    }
+
     private boolean nextData() {
         if (dataIndex + 1 < node.getData().size()) {
             dataIndex++;
@@ -75,27 +96,6 @@ public class PaaUcrDtwQueryExecutor {
         return node.getData().get(dataIndex);
     }
 
-    public PaaUcrDtwQueryExecutor(int N, int M, List<Double> queryData, double Epsilon, int Rho, double Alpha, double Beta, int Phi, Iterator scanner) {
-        this.scanner = scanner;
-        this.M = M;
-        this.N = N;
-        this.queryData = queryData;
-        this.Epsilon = Epsilon;
-        this.Rho = Rho;
-        this.Alpha = Alpha;
-        this.Beta = Beta;
-        this.Phi = Phi;
-
-        Q = new double[M];
-        QQ = new Index[M];
-        Qu = new double[M];
-        Ql = new double[M];
-        eQ = new double[Phi];
-        eT = new double[Phi];
-        eQu = new double[Phi];
-        eQl = new double[Phi];
-    }
-
     @SuppressWarnings("Duplicates")
     public int run() {
         double ex = 0, ex2 = 0;
@@ -114,16 +114,16 @@ public class PaaUcrDtwQueryExecutor {
         int pSize = M / Phi;
         for (int i = 0; i < Phi - 1; i++) {
             eQ[i] = 0;
-            for (int j = i*pSize; j < (i+1)*pSize; j++) {
+            for (int j = i * pSize; j < (i + 1) * pSize; j++) {
                 eQ[i] = eQ[i] + Q[j];
             }
             eQ[i] = (eQ[i] * 1.0 / pSize - meanQ) / stdQ;
         }
         eQ[Phi - 1] = 0;
-        for (int j = (Phi - 1)*pSize; j < M; j++) {
+        for (int j = (Phi - 1) * pSize; j < M; j++) {
             eQ[Phi - 1] = eQ[Phi - 1] + Q[j];
         }
-        eQ[Phi - 1] = (eQ[Phi - 1] * 1.0 / (M - (Phi - 1)*pSize) - meanQ) / stdQ;
+        eQ[Phi - 1] = (eQ[Phi - 1] * 1.0 / (M - (Phi - 1) * pSize) - meanQ) / stdQ;
 
         // Normalize q
         for (int i = 0; i < M; i++) {
@@ -137,7 +137,7 @@ public class PaaUcrDtwQueryExecutor {
         for (int i = 0; i < Phi - 1; i++) {
             eQu[i] = 0;
             eQl[i] = 0;
-            for (int j = i*pSize; j < (i+1)*pSize; j++) {
+            for (int j = i * pSize; j < (i + 1) * pSize; j++) {
                 eQu[i] = eQu[i] + Qu[j];
                 eQl[i] = eQl[i] + Ql[j];
             }
@@ -146,12 +146,12 @@ public class PaaUcrDtwQueryExecutor {
         }
         eQu[Phi - 1] = 0;
         eQl[Phi - 1] = 0;
-        for (int j = (Phi - 1)*pSize; j < M; j++) {
+        for (int j = (Phi - 1) * pSize; j < M; j++) {
             eQu[Phi - 1] = eQu[Phi - 1] + Qu[j];
             eQl[Phi - 1] = eQl[Phi - 1] + Ql[j];
         }
-        eQu[Phi - 1] = eQu[Phi - 1] / (M - (Phi - 1)*pSize);
-        eQl[Phi - 1] = eQl[Phi - 1] / (M - (Phi - 1)*pSize);
+        eQu[Phi - 1] = eQu[Phi - 1] / (M - (Phi - 1) * pSize);
+        eQl[Phi - 1] = eQl[Phi - 1] / (M - (Phi - 1) * pSize);
 
         // Sort the query one time by abs(z-norm(q[i]))
         for (int i = 0; i < M; i++) {
@@ -171,12 +171,12 @@ public class PaaUcrDtwQueryExecutor {
         ex2 = t[0] * t[0];
         double[] Pre = new double[M];
         Pre[0] = t[0];
-        double S1 = 0, S2 = t[0], S3 = 0, S4 = t[0]*t[0], S5 = 0;  // T(c-1), T(c), T(c-1)^2, T(c)^2, T(c-1)*T(c)
+        double S1, S2 = t[0], S3, S4 = t[0] * t[0], S5 = 0;  // T(c-1), T(c), T(c-1)^2, T(c)^2, T(c-1)*T(c)
         double preTii = 0, preTi = 0, tmpPre = 0, lbDTW = INF;
 
         for (int i = 1; i < N; i++) {
             if (i % M == 0) {
-                for (int j = M-1; j >= 0; j--) {
+                for (int j = M - 1; j >= 0; j--) {
                     Pre[j] = Pre[j] - Pre[0];
                 }
                 tmpPre = 0;
@@ -187,15 +187,15 @@ public class PaaUcrDtwQueryExecutor {
             nextData();
             double d = getCurrentData();
             t[i % M] = d;
-            Pre[i % M] = Pre[(i-1) % M] + d;
+            Pre[i % M] = Pre[(i - 1) % M] + d;
             ex += d;
             ex2 += d * d;
 
             S1 = S2;
             S2 = S2 - preTi + d;
             S3 = S4;
-            S4 = S4 - preTi*preTi + d * d;
-            S5 = S5 - preTi*preTii + t[(i-1) % M] * d;
+            S4 = S4 - preTi * preTi + d * d;
+            S5 = S5 - preTi * preTii + t[(i - 1) % M] * d;
 
             if (i >= M - 1) {
                 double mean = ex / M;
@@ -266,7 +266,7 @@ public class PaaUcrDtwQueryExecutor {
         }
         f[0][0] = dist(tc[0], Q[0]);
         for (int i = 1; i <= Rho; i++) {
-            f[0][i] = f[0][i-1] + dist(Q[0], tc[i]);
+            f[0][i] = f[0][i - 1] + dist(Q[0], tc[i]);
         }
         f[0][Rho + 1] = INF;
 
@@ -275,8 +275,8 @@ public class PaaUcrDtwQueryExecutor {
             for (int j = Math.max(0, i - Rho); j <= Math.min(M - 1, i + Rho); j++) {
                 double min_cost = f[(i - 1) % 2][j];
                 double a = INF, b = INF;
-                if (j>0) a = f[i % 2][j - 1];
-                if (j>0) b = f[(i - 1) % 2][j - 1];
+                if (j > 0) a = f[i % 2][j - 1];
+                if (j > 0) b = f[(i - 1) % 2][j - 1];
                 min_cost = Math.min(min_cost, Math.min(a, b));
                 f[i % 2][j] = min_cost + dist(Q[i], tc[j]);
                 if (minn > f[i % 2][j]) minn = f[i % 2][j];
@@ -308,8 +308,10 @@ public class PaaUcrDtwQueryExecutor {
             while ((duT >= duS) && (tt[i].value > tt[du[duT]].value)) duT--;
             while ((dlT >= dlS) && (tt[i].value < tt[dl[dlT]].value)) dlT--;
 
-            duT++; du[duT] = i;
-            dlT++; dl[dlT] = i;
+            duT++;
+            du[duT] = i;
+            dlT++;
+            dl[dlT] = i;
 
             tu[i] = tt[du[duS]].value;
             tl[i] = tt[dl[dlS]].value;
@@ -376,30 +378,30 @@ public class PaaUcrDtwQueryExecutor {
         double LB, d;
         int st = x - M + 1;
         double en0 = (t[x % M] - mean) / std;
-        double st0 = (t[(x-M+1) % M] - mean) / std;
-        LB = dist(st0, Q[0]) + dist(en0, Q[M-1]);
+        double st0 = (t[(x - M + 1) % M] - mean) / std;
+        LB = dist(st0, Q[0]) + dist(en0, Q[M - 1]);
         if (LB >= Epsilon * Epsilon) return LB;
 
-        double st1 = (t[(st + 1)%M] - mean) / std;
+        double st1 = (t[(st + 1) % M] - mean) / std;
         d = Math.min(dist(st1, Q[0]), dist(st0, Q[1]));
         d = Math.min(d, dist(st1, Q[1]));
         LB = LB + d;
         if (LB >= Epsilon * Epsilon) return LB;
 
-        double en1 = (t[(st + M - 2)%M] - mean) / std;
+        double en1 = (t[(st + M - 2) % M] - mean) / std;
         d = Math.min(dist(en1, Q[M - 1]), dist(en0, Q[M - 2]));
         d = Math.min(d, dist(en1, Q[M - 2]));
         LB = LB + d;
         if (LB >= Epsilon * Epsilon) return LB;
 
-        double st2 = (t[(st + 2)%M] - mean) / std;
+        double st2 = (t[(st + 2) % M] - mean) / std;
         d = Math.min(dist(st0, Q[2]), dist(st1, Q[2]));
         d = Math.min(d, dist(st2, Q[2]));
         d = Math.min(d, dist(st2, Q[1]));
         d = Math.min(d, dist(st2, Q[0]));
         LB = LB + d;
 
-        double en2 = (t[(st + M - 3)%M] - mean) / std;
+        double en2 = (t[(st + M - 3) % M] - mean) / std;
         d = Math.min(dist(en0, Q[M - 3]), dist(en1, Q[M - 3]));
         d = Math.min(d, dist(en2, Q[M - 3]));
         d = Math.min(d, dist(en2, Q[M - 2]));
@@ -414,12 +416,12 @@ public class PaaUcrDtwQueryExecutor {
         double tmp = tmpPre;
 
         for (int i = 0; i < Phi - 1; i++) {
-            eT[i] = Pre[(st + (i+1)*pSize - 1) % M] - tmp;
+            eT[i] = Pre[(st + (i + 1) * pSize - 1) % M] - tmp;
             eT[i] = (eT[i] / pSize - mean) / std;
-            tmp = Pre[(st + (i+1)*pSize - 1) % M];
+            tmp = Pre[(st + (i + 1) * pSize - 1) % M];
         }
         eT[Phi - 1] = Pre[x % M] - tmp;
-        eT[Phi - 1] = (eT[Phi - 1] / (M - (Phi-1)*pSize) - mean) / std;
+        eT[Phi - 1] = (eT[Phi - 1] / (M - (Phi - 1) * pSize) - mean) / std;
 
         double lb = 0;
         for (int i = 0; i < Phi - 1; i++) {
@@ -431,16 +433,16 @@ public class PaaUcrDtwQueryExecutor {
             }
         }
         if (eT[Phi - 1] > eQu[Phi - 1]) {
-            lb = lb + (eT[Phi - 1] - eQu[Phi - 1]) * (eT[Phi - 1] - eQu[Phi - 1]) * (M - (Phi - 1)*pSize);
+            lb = lb + (eT[Phi - 1] - eQu[Phi - 1]) * (eT[Phi - 1] - eQu[Phi - 1]) * (M - (Phi - 1) * pSize);
         }
         if (eT[Phi - 1] < eQl[Phi - 1]) {
-            lb = lb + (eQl[Phi - 1] - eT[Phi - 1]) * (eQl[Phi - 1] - eT[Phi - 1]) * (M - (Phi - 1)*pSize);
+            lb = lb + (eQl[Phi - 1] - eT[Phi - 1]) * (eQl[Phi - 1] - eT[Phi - 1]) * (M - (Phi - 1) * pSize);
         }
         return Math.sqrt(lb);
     }
 
     private double ED(double S1, double S2, double S3, double S4, double S5) {
-        double tmp = (M * S5 - S1 * S2) / (Math.sqrt(M * S3 - S1*S1) * Math.sqrt(M * S4 - S2*S2));
+        double tmp = (M * S5 - S1 * S2) / (Math.sqrt(M * S3 - S1 * S1) * Math.sqrt(M * S4 - S2 * S2));
         return Math.sqrt(2 * M * (1.0 - tmp));
     }
 }

@@ -42,7 +42,7 @@ public class RangeQuerySegment {
 
     @Override
     public String toString() {
-        return String.valueOf(order) + "(" + String.valueOf(Wu) + ")";
+        return order + "(" + Wu + ")";
     }
 
     public double getMeanMin() {

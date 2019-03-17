@@ -15,9 +15,9 @@
  */
 package cn.edu.fudan.dsm.kvmatch.experiments.ucr;
 
+import cn.edu.fudan.dsm.kvmatch.common.Index;
 import cn.edu.fudan.dsm.kvmatch.common.Pair;
 import cn.edu.fudan.dsm.kvmatch.common.entity.TimeSeriesNode;
-import cn.edu.fudan.dsm.kvmatch.common.Index;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.slf4j.Logger;
@@ -25,6 +25,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.*;
 
+@SuppressWarnings("Duplicates")
 public class UcrEdQueryExecutor {
 
     private static final Logger logger = LoggerFactory.getLogger(UcrEdQueryExecutor.class);
@@ -42,7 +43,19 @@ public class UcrEdQueryExecutor {
     private Iterator scanner;
     private TimeSeriesNode node = new TimeSeriesNode();
 
-    @SuppressWarnings("Duplicates")
+    public UcrEdQueryExecutor(int N, int M, List<Double> queryData, double Epsilon, double Alpha, double Beta, Iterator scanner) {
+        this.scanner = scanner;
+        this.M = M;
+        this.N = N;
+        this.queryData = queryData;
+        this.Epsilon = Epsilon;
+        this.Alpha = Alpha;
+        this.Beta = Beta;
+
+        // Array for keeping the query data
+        Q = new double[M];
+    }
+
     private boolean nextData() {
         if (dataIndex + 1 < node.getData().size()) {
             dataIndex++;
@@ -82,19 +95,6 @@ public class UcrEdQueryExecutor {
             sum += (x - Q[i]) * (x - Q[i]);
         }
         return sum;
-    }
-
-    public UcrEdQueryExecutor(int N, int M, List<Double> queryData, double Epsilon, double Alpha, double Beta, Iterator scanner) {
-        this.scanner = scanner;
-        this.M = M;
-        this.N = N;
-        this.queryData = queryData;
-        this.Epsilon = Epsilon;
-        this.Alpha = Alpha;
-        this.Beta = Beta;
-
-        // Array for keeping the query data
-        Q = new double[M];
     }
 
     @SuppressWarnings("Duplicates")
@@ -154,8 +154,8 @@ public class UcrEdQueryExecutor {
                 j = (i + 1) % M;
 
                 // Z_norm(T[i]) will be calculated on the fly
-                double mean = ex/M;
-                double std = ex2/M;
+                double mean = ex / M;
+                double std = ex2 / M;
                 std = Math.sqrt(std - mean * mean);
 
                 if (Math.abs(mean - meanQ) <= Beta && (std / stdQ) <= Alpha && (std / stdQ) >= 1.0 / Alpha) {  //  test single point range criterion
@@ -167,7 +167,7 @@ public class UcrEdQueryExecutor {
                     }
                 }
                 ex -= t[j];
-                ex2 -= t[j]* t[j];
+                ex2 -= t[j] * t[j];
             }
             i++;
         }

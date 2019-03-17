@@ -32,13 +32,13 @@ public class MeanIntervalUtils {
     /**
      * The minumum value of time series, which should be adapt to the real data.
      */
-    public static double MINIMUM = 1000000;
+    private static double MINIMUM = 1000000;
 
     /**
      * Precise d to 0.5*10^(-x+1).
      * For example: x=1 -> d=0.5, x=2 -> d=0.05, etc.
      */
-    public static int posOfD = 2;
+    private static int posOfD = 2;
 
     /**
      * Round float number to half integer. d = 0.5
@@ -49,14 +49,14 @@ public class MeanIntervalUtils {
      * @return rounded value
      */
     public static double toRound(double value) {
-        value *= Math.pow(10, posOfD-1);
+        value *= Math.pow(10, posOfD - 1);
         double intValue = Math.floor(value);
         double diff = value - intValue;
         double retValue = intValue;
         if (Double.compare(diff, 0.5) >= 0) {
             retValue += 0.5;
         }
-        retValue *= Math.pow(10, -posOfD+1);
+        retValue *= Math.pow(10, -posOfD + 1);
         return retValue;
     }
 
@@ -87,10 +87,10 @@ public class MeanIntervalUtils {
      * @param round mean interval round
      * @return upper bound
      */
-    public static double toUpper(double round) {
-        round *= Math.pow(10, posOfD-1);
+    private static double toUpper(double round) {
+        round *= Math.pow(10, posOfD - 1);
         round += 0.5;
-        round *= Math.pow(10, -posOfD+1);
+        round *= Math.pow(10, -posOfD + 1);
         return round;
     }
 
@@ -135,8 +135,8 @@ public class MeanIntervalUtils {
      * 1. Convert to double value;
      * 2. Minus the minimum value.
      *
-     * @param bytes
-     * @return
+     * @param bytes row key from HBase stored in byte array
+     * @return mean value in double
      */
     public static double toDouble(byte[] bytes) {
         return Bytes.toDouble(bytes) - MINIMUM;
@@ -144,6 +144,7 @@ public class MeanIntervalUtils {
 
     /**
      * Convert mean value to Kudu row key.
+     *
      * @param value mean value in double
      * @return row key in long
      */
@@ -153,6 +154,7 @@ public class MeanIntervalUtils {
 
     /**
      * Convert Kudu row key into mean value
+     *
      * @param longValue row key in long
      * @return mean value in double
      */

@@ -56,24 +56,11 @@ public class IndexBuilder {
     private IndexOperator[] indexOperators = new IndexOperator[WuList.length];
     private int n;
 
-    public static void main(String args[]) throws IOException {
-        System.out.print("Data Length = ");
-        Scanner scanner = new Scanner(System.in);
-        int n = scanner.nextInt();
-        scanner.close();
-
-        IndexBuilder indexBuilder = new IndexBuilder(n, "file");
-        indexBuilder.buildIndexes();
-    }
-
     public IndexBuilder(int n, String storageType) throws IOException {
         this.n = n;
         switch (storageType) {
             case "file":
                 timeSeriesOperator = new TimeSeriesFileOperator(n, false);
-                break;
-            case "hdfs":
-
                 break;
             case "hbase":
                 timeSeriesOperator = new TimeSeriesHBaseTableOperator(n, 7, false);
@@ -88,9 +75,6 @@ public class IndexBuilder {
                 case "file":
                     indexOperators[i] = new IndexFileOperator("standard", n, WuList[i], true);
                     break;
-                case "hdfs":
-
-                    break;
                 case "hbase":
                     indexOperators[i] = new IndexHBaseTableOperator("standard", n, WuList[i], true);
                     break;
@@ -99,6 +83,16 @@ public class IndexBuilder {
                     break;
             }
         }
+    }
+
+    public static void main(String[] args) throws IOException {
+        System.out.print("Data Length = ");
+        Scanner scanner = new Scanner(System.in);
+        int n = scanner.nextInt();
+        scanner.close();
+
+        IndexBuilder indexBuilder = new IndexBuilder(n, "file");
+        indexBuilder.buildIndexes();
     }
 
     private void buildIndexes() {
@@ -114,7 +108,7 @@ public class IndexBuilder {
                 builder.run();
                 long endTime1 = System.currentTimeMillis();
                 logger.info("w = {}, time usage: {} ms", WuList[i], endTime1 - startTime1);
-                StatisticWriter.print(String.valueOf(endTime1 - startTime1) + ",");
+                StatisticWriter.print((endTime1 - startTime1) + ",");
             } catch (IOException e) {
                 logger.error(e.getMessage(), e.getCause());
             }
@@ -122,7 +116,7 @@ public class IndexBuilder {
 
         long endTime = System.currentTimeMillis();
         logger.info("Total time usage: {} ms", endTime - startTime);
-        StatisticWriter.print(String.valueOf(endTime - startTime) + ",");
+        StatisticWriter.print((endTime - startTime) + ",");
     }
 
     private class SingleIndexBuilder {
@@ -135,7 +129,7 @@ public class IndexBuilder {
 
         double d;
         double ex, ex2, mean, std;
-        int n, w = -1, cnt = 0;
+        int n, w, cnt = 0;
         double[] buffer;
 
         // For every EPOCH points, all cumulative values, such as ex (sum), ex2 (sum square), will be restarted for reducing the floating point error.
@@ -144,7 +138,7 @@ public class IndexBuilder {
         TimeSeriesNode node = new TimeSeriesNode();
         int dataIndex = 0;
 
-        SingleIndexBuilder(int n, int w, Iterator scanner, IndexOperator indexOperator) throws IOException {
+        SingleIndexBuilder(int n, int w, Iterator scanner, IndexOperator indexOperator) {
             this.scanner = scanner;
             this.w = w;
             this.n = n;
@@ -155,7 +149,7 @@ public class IndexBuilder {
             this.indexOperator = indexOperator;
         }
 
-        boolean nextData() throws IOException {
+        boolean nextData() {
             if (dataIndex + 1 < node.getData().size()) {
                 dataIndex++;
                 return ++cnt <= n;

@@ -24,25 +24,14 @@ public class QuerySegment {
 
     private double mean;
 
-    private double std;  // added for extended KV-match, which uses mean-std-combination as the rowkey of index
-
     private int order;
 
     private int count;
 
     private int Wu;
 
-    public QuerySegment(double mean, int order, int count, int Wu) {  // legacy for standard KV-match
+    public QuerySegment(double mean, int order, int count, int Wu) {
         this.mean = mean;
-        this.std = 0;
-        this.order = order;
-        this.count = count;
-        this.Wu = Wu;
-    }
-
-    public QuerySegment(double mean, double std, int order, int count, int Wu) {
-        this.mean = mean;
-        this.std = std;
         this.order = order;
         this.count = count;
         this.Wu = Wu;
@@ -50,7 +39,7 @@ public class QuerySegment {
 
     @Override
     public String toString() {
-        return String.valueOf(order) + "(" + String.valueOf(Wu) + ")";
+        return order + "(" + Wu + ")";
     }
 
     public double getMean() {
@@ -59,14 +48,6 @@ public class QuerySegment {
 
     public void setMean(double mean) {
         this.mean = mean;
-    }
-
-    public double getStd() {
-        return std;
-    }
-
-    public void setStd(double std) {
-        this.std = std;
     }
 
     public int getOrder() {

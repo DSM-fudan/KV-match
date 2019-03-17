@@ -30,13 +30,14 @@ import java.util.*;
 /**
  * Created by Jiaye Wu on 17-8-28.
  */
+@SuppressWarnings("Duplicates")
 public class NormQueryDtwSelectivityGenerate {
 
     private static final Logger logger = LoggerFactory.getLogger(NormQueryDtwSelectivityGenerate.class);
 
     private static final double[] BETA_BASE = {12.6630293829517, 19.6511100577873, 24.2890461295369, 44.973756278129, 56.5263112691118};
 
-    public static void main(String args[]) {
+    public static void main(String[] args) {
         int N;
         String storageType;
         boolean runUcrDtw;
@@ -48,7 +49,7 @@ public class NormQueryDtwSelectivityGenerate {
             Scanner scanner = new Scanner(System.in);
             System.out.print("Data Length = ");
             N = scanner.nextInt();
-            System.out.print("Storage type [file/hdfs/hbase/kudu] = ");
+            System.out.print("Storage type [file/hbase/kudu] = ");
             storageType = scanner.next();
             System.out.print("Run UCR-DTW? [true/false] = ");
             runUcrDtw = scanner.nextBoolean();

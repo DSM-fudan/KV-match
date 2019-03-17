@@ -67,7 +67,37 @@ public class QueryEngine {
     private double[][] cost;
     private int[][] cost2;
 
-    public static void main(String args[]) throws IOException {
+    public QueryEngine(int n, String storageType) throws IOException {
+        this.n = n;
+        switch (storageType) {
+            case "file":
+                timeSeriesOperator = new TimeSeriesFileOperator(n, false);
+                break;
+            case "hbase":
+                timeSeriesOperator = new TimeSeriesHBaseTableOperator(n, 7, false);
+                break;
+            case "kudu":
+                timeSeriesOperator = new TimeSeriesKuduTableOperator(n, false);
+                break;
+        }
+        for (int i = 0; i < WuList.length; i++) {
+            if (!WuEnabled[i]) continue;
+            switch (storageType) {
+                case "file":
+                    indexOperators[i] = new IndexFileOperator("standard", n, WuList[i], false);
+                    break;
+                case "hbase":
+                    indexOperators[i] = new IndexHBaseTableOperator("standard", n, WuList[i], false);
+                    break;
+                case "kudu":
+                    indexOperators[i] = new IndexKuduTableOperator("standard", n, WuList[i], false);
+                    break;
+            }
+        }
+        loadMetaTable();
+    }
+
+    public static void main(String[] args) throws IOException {
         Scanner scanner = new Scanner(System.in);
         System.out.print("Data Length = ");
         int n = scanner.nextInt();
@@ -119,43 +149,6 @@ public class QueryEngine {
             }
             StatisticWriter.println("");
         } while (true);
-    }
-
-    public QueryEngine(int n, String storageType) throws IOException {
-        this.n = n;
-        switch (storageType) {
-            case "file":
-                timeSeriesOperator = new TimeSeriesFileOperator(n, false);
-                break;
-            case "hdfs":
-
-                break;
-            case "hbase":
-                timeSeriesOperator = new TimeSeriesHBaseTableOperator(n, 7, false);
-                break;
-            case "kudu":
-                timeSeriesOperator = new TimeSeriesKuduTableOperator(n, false);
-                break;
-        }
-        for (int i = 0; i < WuList.length; i++) {
-            if (!WuEnabled[i]) continue;
-            switch (storageType) {
-                case "file":
-                    indexOperators[i] = new IndexFileOperator("standard", n, WuList[i], false);
-                    break;
-                case "hdfs":
-
-                    break;
-                case "hbase":
-                    indexOperators[i] = new IndexHBaseTableOperator("standard", n, WuList[i], false);
-                    break;
-                case "kudu":
-                    indexOperators[i] = new IndexKuduTableOperator("standard", n, WuList[i], false);
-                    break;
-            }
-
-        }
-        loadMetaTable();
     }
 
     @SuppressWarnings("unchecked")
@@ -355,6 +348,7 @@ public class QueryEngine {
             if (begin < 1) begin = 1;
             if (end > n) end = n;
             logger.debug("Scan data [{}, {}]", begin, end);
+            @SuppressWarnings("unchecked")
             List<Double> data = timeSeriesOperator.readTimeSeries(begin, end - begin + 1);
 
             for (int i = 0; i + length - 1 < data.size(); i++) {
@@ -506,7 +500,9 @@ public class QueryEngine {
         return queries;
     }
 
-    private void scanIndex(double begin, boolean beginInclusive, double end, boolean endInclusive, QuerySegment query, List<Interval> positions) throws IOException {
+    @SuppressWarnings("SameParameterValue")
+    private void scanIndex(double begin, boolean beginInclusive, double end, boolean endInclusive,
+                           QuerySegment query, List<Interval> positions) throws IOException {
         if (!beginInclusive) begin = begin + 0.01;
         if (endInclusive) end = end + 0.01;
 
@@ -521,7 +517,8 @@ public class QueryEngine {
         }
     }
 
-    private void scanIndexAndAddCache(double begin, boolean beginInclusive, double end, boolean endInclusive, int index, QuerySegment query, List<Interval> positions) throws IOException {
+    private void scanIndexAndAddCache(double begin, boolean beginInclusive, double end, boolean endInclusive,
+                                      int index, QuerySegment query, List<Interval> positions) throws IOException {
         if (index < 0) {
             index = -index - 1;
             indexCaches.get(query.getWu() / WuList[0] - 1).add(index, new IndexCache(begin, end));
@@ -543,7 +540,9 @@ public class QueryEngine {
         }
     }
 
-    private void scanCache(int index, double begin, boolean beginInclusive, double end, boolean endInclusive, QuerySegment query, List<Interval> positions) {
+    @SuppressWarnings("SameParameterValue")
+    private void scanCache(int index, double begin, boolean beginInclusive, double end, boolean endInclusive,
+                           QuerySegment query, List<Interval> positions) {
         for (Map.Entry<Double, IndexNode> entry : indexCaches.get(query.getWu() / WuList[0] - 1).get(index).getCaches().subMap(begin, beginInclusive, end, endInclusive).entrySet()) {
             double meanRound = entry.getKey();
             IndexNode indexNode = entry.getValue();

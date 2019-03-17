@@ -28,11 +28,12 @@ import java.util.Scanner;
 /**
  * Created by Jiaye Wu on 18-2-22.
  */
+@SuppressWarnings("Duplicates")
 public class GMatchQueryDataExtractor {
 
     private static final Logger logger = LoggerFactory.getLogger(GMatchQueryDataExtractor.class);
 
-    public static void main(String args[]) {
+    public static void main(String[] args) {
         int N;
         if (args.length == 2) {
             N = Integer.parseInt(args[0]);

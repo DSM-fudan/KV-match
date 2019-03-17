@@ -69,6 +69,36 @@ public class NormQueryEngineDtw {
     private double[][] cost;
     private int[][] cost2;
 
+    public NormQueryEngineDtw(int n, String storageType) throws IOException {
+        this.n = n;
+        switch (storageType) {
+            case "file":
+                timeSeriesOperator = new TimeSeriesFileOperator(n, false);
+                break;
+            case "hbase":
+                timeSeriesOperator = new TimeSeriesHBaseTableOperator(n, 7, false);
+                break;
+            case "kudu":
+                timeSeriesOperator = new TimeSeriesKuduTableOperator(n, false);
+                break;
+        }
+        for (int i = 0; i < WuList.length; i++) {
+            if (!WuEnabled[i]) continue;
+            switch (storageType) {
+                case "file":
+                    indexOperators[i] = new IndexFileOperator("standard", n, WuList[i], false);
+                    break;
+                case "hbase":
+                    indexOperators[i] = new IndexHBaseTableOperator("standard", n, WuList[i], false);
+                    break;
+                case "kudu":
+                    indexOperators[i] = new IndexKuduTableOperator("standard", n, WuList[i], false);
+                    break;
+            }
+        }
+        loadMetaTable();
+    }
+
     public static void main(String[] args) throws IOException {
         Scanner scanner = new Scanner(System.in);
         System.out.print("Data Length = ");
@@ -147,36 +177,6 @@ public class NormQueryEngineDtw {
             }
             StatisticWriter.println("");
         } while (true);
-    }
-
-    public NormQueryEngineDtw(int n, String storageType) throws IOException {
-        this.n = n;
-        switch (storageType) {
-            case "file":
-                timeSeriesOperator = new TimeSeriesFileOperator(n, false);
-                break;
-            case "hbase":
-                timeSeriesOperator = new TimeSeriesHBaseTableOperator(n, 7, false);
-                break;
-            case "kudu":
-                timeSeriesOperator = new TimeSeriesKuduTableOperator(n, false);
-                break;
-        }
-        for (int i = 0; i < WuList.length; i++) {
-            if (!WuEnabled[i]) continue;
-            switch (storageType) {
-                case "file":
-                    indexOperators[i] = new IndexFileOperator("standard", n, WuList[i], false);
-                    break;
-                case "hbase":
-                    indexOperators[i] = new IndexHBaseTableOperator("standard", n, WuList[i], false);
-                    break;
-                case "kudu":
-                    indexOperators[i] = new IndexKuduTableOperator("standard", n, WuList[i], false);
-                    break;
-            }
-        }
-        loadMetaTable();
     }
 
     @SuppressWarnings("unchecked")
@@ -569,7 +569,7 @@ public class NormQueryEngineDtw {
                                     // qo is the sorted query. tz is unsorted z_normalized data.
                                     // l_buff, u_buff are big envelop for all data in this chunk
                                     double[] cb2 = new double[queryLength];
-                                    double lbK2 = DtwUtils.lbKeoghDataCumulative(order, qo, cb2, i-queryLength+1, lBuff, uBuff, queryLength, mean, std, epsilon * epsilon);
+                                    double lbK2 = DtwUtils.lbKeoghDataCumulative(order, qo, cb2, i - queryLength + 1, lBuff, uBuff, queryLength, mean, std, epsilon * epsilon);
                                     if (lbK2 <= epsilon * epsilon) {
                                         // Choose better lower bound between lb_keogh and lb_keogh2 to be used in early abandoning DTW
                                         // Note that cb and cb2 will be cumulative summed here.
@@ -622,12 +622,12 @@ public class NormQueryEngineDtw {
     private Pair<Integer, Integer> getCountsFromStatisticInfo(int Wu, double meanMin, double meanMax, double epsilon, double alpha, double beta, double meanQ, double stdQ) {
         List<Pair<Double, Pair<Integer, Integer>>> statisticInfo = statisticInfos.get(Wu / WuList[0] - 1);
 
-        double beginRound = 1.0/alpha * meanMin + (1 - 1.0/alpha) * meanQ - beta - 1.0 / alpha * epsilon * stdQ / Math.sqrt(Wu);
+        double beginRound = 1.0 / alpha * meanMin + (1 - 1.0 / alpha) * meanQ - beta - 1.0 / alpha * epsilon * stdQ / Math.sqrt(Wu);
         double beginRound1 = alpha * meanMin + (1 - alpha) * meanQ - beta - alpha * epsilon * stdQ / Math.sqrt(Wu);
         beginRound = MeanIntervalUtils.toRound(Math.min(beginRound, beginRound1));
 
         double endRound = alpha * meanMax + (1 - alpha) * meanQ + beta + alpha * epsilon * stdQ / Math.sqrt(Wu);
-        double endRound1 = 1.0/alpha * meanMax + (1 - 1.0/alpha) * meanQ + beta + 1.0 / alpha * epsilon * stdQ / Math.sqrt(Wu);
+        double endRound1 = 1.0 / alpha * meanMax + (1 - 1.0 / alpha) * meanQ + beta + 1.0 / alpha * epsilon * stdQ / Math.sqrt(Wu);
         endRound = MeanIntervalUtils.toRound(Math.max(endRound, endRound1));
 
         int index = Collections.binarySearch(statisticInfo, new Pair<>(beginRound, 0), Comparator.comparing(Pair::getFirst));

@@ -30,7 +30,7 @@ import java.util.List;
 /**
  * A wrapper class to interact with the data file.
  * Only support time series whose length is less than INT_MAX.
- *
+ * <p>
  * Created by Jiaye Wu on 17-8-24.
  */
 public class TimeSeriesFileOperator implements TimeSeriesOperator {

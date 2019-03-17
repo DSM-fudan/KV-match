@@ -60,22 +60,8 @@ public class Pair<T1, T2> implements Serializable {
         return new Pair<>(a, b);
     }
 
-    /**
-     * Replace the first element of the pair.
-     *
-     * @param a operand
-     */
-    public void setFirst(T1 a) {
-        this.first = a;
-    }
-
-    /**
-     * Replace the second element of the pair.
-     *
-     * @param b operand
-     */
-    public void setSecond(T2 b) {
-        this.second = b;
+    private static boolean equals(Object x, Object y) {
+        return (x == null && y == null) || (x != null && x.equals(y));
     }
 
     /**
@@ -88,6 +74,15 @@ public class Pair<T1, T2> implements Serializable {
     }
 
     /**
+     * Replace the first element of the pair.
+     *
+     * @param a operand
+     */
+    public void setFirst(T1 a) {
+        this.first = a;
+    }
+
+    /**
      * Return the second element stored in the pair.
      *
      * @return T2
@@ -96,8 +91,13 @@ public class Pair<T1, T2> implements Serializable {
         return second;
     }
 
-    private static boolean equals(Object x, Object y) {
-        return (x == null && y == null) || (x != null && x.equals(y));
+    /**
+     * Replace the second element of the pair.
+     *
+     * @param b operand
+     */
+    public void setSecond(T2 b) {
+        this.second = b;
     }
 
     @Override

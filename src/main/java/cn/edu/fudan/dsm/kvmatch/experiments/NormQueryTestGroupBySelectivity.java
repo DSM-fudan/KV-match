@@ -41,7 +41,7 @@ public class NormQueryTestGroupBySelectivity {
 
     private static final Logger logger = LoggerFactory.getLogger(NormQueryTestGroupBySelectivity.class);
 
-    private static final int NUM_STATISTIC_INFO = 10;
+    private static final int NUM_STATISTIC_INFO = 6;
 
     public static void main(String[] args) {
         int N;
@@ -108,7 +108,7 @@ public class NormQueryTestGroupBySelectivity {
                     }
 
                     // UCR-ED
-                    if (runUcrEd && (j == 0 || !queryBetas.get(j).equals(queryBetas.get(j-1)))) {
+                    if (runUcrEd && (j == 0 || !queryBetas.get(j).equals(queryBetas.get(j - 1)))) {
                         @SuppressWarnings("unchecked")
                         List<Double> queryData = timeSeriesOperator.readTimeSeries(queryOffsets.get(j), queryLengths.get(j));
 

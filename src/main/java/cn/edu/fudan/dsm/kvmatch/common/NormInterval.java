@@ -51,14 +51,6 @@ public class NormInterval {
         this.betaPartitions = betaPartitions;
     }
 
-    @Deprecated
-    public NormInterval(int left, int right, double ex, double ex2) {
-        this.left = left;
-        this.right = right;
-        this.exLower = ex;
-        this.ex2Lower = ex2;
-    }
-
     public NormInterval(int left, int right, double ex, double ex2, long betaPartitions) {
         this.left = left;
         this.right = right;
@@ -81,16 +73,6 @@ public class NormInterval {
 
     public void setRight(int right) {
         this.right = right;
-    }
-
-    @Deprecated
-    public double getEx() {
-        return exLower;
-    }
-
-    @Deprecated
-    public double getEx2() {
-        return ex2Lower;
     }
 
     public double getExLower() {
