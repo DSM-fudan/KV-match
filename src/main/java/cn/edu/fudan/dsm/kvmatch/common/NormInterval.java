@@ -41,13 +41,14 @@ public class NormInterval {
         this.right = right;
     }
 
-    public NormInterval(int left, int right, double exLower, double ex2Lower, double exUpper, double ex2Upper) {
+    public NormInterval(int left, int right, double exLower, double ex2Lower, double exUpper, double ex2Upper, long betaPartitions) {
         this.left = left;
         this.right = right;
         this.exLower = exLower;
         this.ex2Lower = ex2Lower;
         this.exUpper = exUpper;
         this.ex2Upper = ex2Upper;
+        this.betaPartitions = betaPartitions;
     }
 
     @Deprecated

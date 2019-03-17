@@ -32,16 +32,16 @@ import java.util.Scanner;
 /**
  * Created by Jiaye Wu on 17-8-28.
  */
+@SuppressWarnings("Duplicates")
 public class QueryDtwTestGroupBySelectivity {
 
     private static final Logger logger = LoggerFactory.getLogger(QueryDtwTestGroupBySelectivity.class);
 
-    @SuppressWarnings("Duplicates")
-    public static void main(String args[]) {
+    public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
         System.out.print("Data Length = ");
         int N = scanner.nextInt();
-        System.out.print("Storage type [file/hdfs/hbase/kudu] = ");
+        System.out.print("Storage type [file/hbase/kudu] = ");
         String storageType = scanner.next();
 
         try {
