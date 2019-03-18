@@ -255,12 +255,12 @@ public class NormQueryEngineDtw {
             for (int betaPartitionIdx = 0; betaPartitionIdx < betaPartitionNum; betaPartitionIdx++) {
                 double betaPartition = 2.0 * beta / betaPartitionNum;
 
-                double beginRoundT = 1.0 / alpha * query.getMeanMin() + (1 - 1.0 / alpha) * meanQ - beta + betaPartition * betaPartitionIdx - Math.sqrt(1.0 / (alpha * alpha) * stdQ * stdQ * epsilon * epsilon / query.getWu());
-                double beginRound1T = alpha * query.getMeanMin() + (1 - alpha) * meanQ - beta + betaPartition * betaPartitionIdx - Math.sqrt(alpha * alpha * stdQ * stdQ * epsilon * epsilon / query.getWu());
+                double beginRoundT = 1.0 / alpha * query.getMeanMin() + (1 - 1.0 / alpha) * meanQ - beta + betaPartition * betaPartitionIdx - 1.0 / alpha * epsilon * stdQ / Math.sqrt(query.getWu());
+                double beginRound1T = alpha * query.getMeanMin() + (1 - alpha) * meanQ - beta + betaPartition * betaPartitionIdx - alpha * epsilon * stdQ / Math.sqrt(query.getWu());
                 beginRoundT = MeanIntervalUtils.toRound(Math.min(beginRoundT, beginRound1T), statisticInfos.get(query.getWu() / WuList[0] - 1));
 
-                double endRoundT = alpha * query.getMeanMax() + (1 - alpha) * meanQ - beta + betaPartition * (betaPartitionIdx + 1) + Math.sqrt(alpha * alpha * stdQ * stdQ * epsilon * epsilon / query.getWu());
-                double endRound1T = 1.0 / alpha * query.getMeanMax() + (1 - 1.0 / alpha) * meanQ - beta + betaPartition * (betaPartitionIdx + 1) + Math.sqrt(1.0 / (alpha * alpha) * stdQ * stdQ * epsilon * epsilon / query.getWu());
+                double endRoundT = alpha * query.getMeanMax() + (1 - alpha) * meanQ - beta + betaPartition * (betaPartitionIdx + 1) + alpha * epsilon * stdQ / Math.sqrt(query.getWu());
+                double endRound1T = 1.0 / alpha * query.getMeanMax() + (1 - 1.0 / alpha) * meanQ - beta + betaPartition * (betaPartitionIdx + 1) + 1.0 / alpha * epsilon * stdQ / Math.sqrt(query.getWu());
                 endRoundT = MeanIntervalUtils.toRound(Math.max(endRoundT, endRound1T));
 
                 betaPartitions.add(new Pair<>(beginRoundT, endRoundT));
@@ -409,8 +409,8 @@ public class NormQueryEngineDtw {
                             if (validPositions.get(index1).getRight() < positions.get(index2).getRight()) {
                                 nextValidPositions.add(new NormInterval(
                                         Math.max(validPositions.get(index1).getLeft(), positions.get(index2).getLeft()) + deltaW,
-                                        validPositions.get(index1).getRight() + deltaW
-                                        , 0, 0, 0, 0, commonBetaPartitions));
+                                        validPositions.get(index1).getRight() + deltaW,
+                                        0, 0, 0, 0, commonBetaPartitions));
                                 index1++;
                             } else {
                                 nextValidPositions.add(new NormInterval(

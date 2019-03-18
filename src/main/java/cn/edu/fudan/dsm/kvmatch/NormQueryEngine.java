@@ -35,7 +35,7 @@ import java.io.IOException;
 import java.util.*;
 
 /**
- * Query engine for KV-index_{DP} with normalization
+ * Query engine for KV-index_{DP} with normalization under ED
  * <p>
  * Created by Jiaye Wu on 18-1-10.
  */
@@ -211,7 +211,7 @@ public class NormQueryEngine {
         int preLength = 0;
         for (int i = 0; i < queries.size(); i++) {
             QuerySegment query = queries.get(i);
-            logger.info("Disjoint window #{} - {} - mean:{}", i + 1, query.getOrder(), query.getMean());
+            logger.info("Disjoint window #{} - {} - mean: {}", i + 1, query.getOrder(), query.getMean());
 
             int deltaW = (i == queries.size() - 1) ? 0 : (queries.get(i + 1).getOrder() - query.getOrder()) * WuList[0];
             preLength += query.getWu() / WuList[0];
